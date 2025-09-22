@@ -1,0 +1,231 @@
+\documentclass{ctexart}
+\usepackage{Note}
+\begin{document}
+\section{绘图}
+\subsection{光栅化和直线绘制}
+\subsubsection{光栅化}
+\begin{definition}[光栅化]
+    将图形转换为像素的过程称为\tbf{光栅化(rasterization)}.
+\end{definition}
+光栅化的思想在三维绘制(即渲染)中也会用到.
+\subsubsection{直线绘制}
+假定我们有一块分辨率为$W\times H$的屏幕,并且希望在屏幕上绘制直线$y=kx+b(x_0\leqslant x_1)$,起止点为$\left(x_0,y_0\right),\left(x_1,y_1\right)$.为了简化问题,我们假设$0\leqslant k\leqslant 1$.
+\paragraph{基于浮点运算的直线绘制法}
+最简单的想法是遍历所有$x\in\left[x_0,x_1\right]$,计算对应的$y$值,然后将$(x,y)$处的像素点填上对应的颜色.
+\begin{lstlisting}[language=Python]
+def draw_line(x0:int, y0:int, k:float, b:float, x1:int):
+    for x in range(x0, x1 + 1):
+        y = k * x + b
+        draw(x,round(y))
+\end{lstlisting}
+\indent 然而,浮点数的运算开销是较大的.为了避免浮点数的乘法,又由于我们的直线是等间隔采样的,因此可以使用累加法.
+\begin{lstlisting}[language=Python]
+def draw_line(x0:int, y0:int, x1:int, y1:int):
+    k = (y1 - y0) / (x1 - x0)
+    y = y0
+    for x in range(x0, x1 + 1):
+        draw(x, round(y))
+        y += k
+\end{lstlisting}
+这就是直线绘制的\tbf{DDA算法(Digital Differential Analyzer)}.\\
+\indent 但是,上面的算法中仍然包含了浮点数的加法.\paragraph{Bresenham直线算法} Bresenham教授在1962年提出了著名的\tbf{布雷森汉姆直线算法(Bresenham's Line Algorithm)},能够在只计算整数加减法的情况下获得和DDA算法相同的结果.\\
+\indent 令直线的起终点为$P_0,P_1$.令$\overrightarrow{P_0P_1}$顺时针旋转$90^\circ$形成的向量$\vec{n}=\left(y_1-y_0,x_0-x_1\right)$,即直线的法向量,那么直线上任意一点$P$就满足
+\[F(P)=\vec{n}\cdot\overrightarrow{P_0P}=0\]
+这就是直线的隐式方程.给出任意一点$Q$,判断$Q$在直线的上方还是下方,只需判断$F(Q)$的符号即可.不难得出,如果$F(Q)$为负,那么$Q$在直线上方,反之则在直线下方.\\
+\indent 假定已经绘制了直线上的一点$\left(x_i,y_i\right)$.对于斜率$k\in(0,1)$的直线,下一个像素的坐标仅有两种可能: $\left(
+x_i+1,y_i\right)$或$\left(x_i+1,y_i+1\right)$. Bresenham认为如果上述两点的中点$\left(x_i+1,y_i+\dfrac12\right)$在直线上方,就绘制$\left(x_i+1,y_i\right)$,否则绘制$\left(x_i+1,y_i+1\right)$.这种判断方法显然比较符合直觉.\\
+\indent 现在我们考虑具体的实现方法.对于已经绘制的点$P_i\left(x_i,y_i\right)$,需要用点$P_i'\left(x_i+1,y_i+\dfrac12\right)$判断下一个像素.为了避免直接计算$F\left(P_i'\right)$(否则我们又要计算乘法),我们考虑下面的递推方法:
+\[F\left(P_i'\right)=\vec{n}\cdot\overrightarrow{P_{i-1}'P_i'}=\vec{n}\cdot\left(\overrightarrow{P_0P_{i-1}'}+\overrightarrow{P_{i-1}'P_i'}\right)=F\left(P_{i-1}'\right)+\vec{n}\cdot\boldsymbol{\delta}\]
+其中$\boldsymbol{\delta}=(1,0)$或$(1,1)$(判断点的移动和绘制点的移动显然是同步的).这样,画完之后我们可以每次更新$F\left(P_i'\right)$的值以进行下一个像素位置的判断.$\vec{n}\cdot\boldsymbol{\delta}$可以在循环前就算好,不必重复.递推的初值为
+\[F\left(P_0'\right)=F\left(P_0\right)+\vec{n}\cdot\left(1,\dfrac12\right)=\left(y_1-y_0\right)-\dfrac12\left(x_1-x_0\right)\]
+为了避免$1/2$带来的浮点运算,我们可以把$F$放大$2$倍.\\
+\indent 总结而言,我们可以将上面的方法写成下面的程序:
+\begin{lstlisting}[language=Python]
+def draw_line(x0: int, y0: int, x1: int, y1: int):
+    y = y0
+    dx, dy = 2 * (x1 - x0), 2 * (y1 - y0)
+    dydx, F = dy - dx, dy - dx // 2
+    for x in range(x0, x1 + 1):
+        draw(x, y)
+        if F < 0: # F(P_i') < 0
+            F += dy # F(P_{i+1}') = F(P_i') + n * delta_0
+        else: # F(P_i') >= 0
+            y += 1
+            F += dydx # F(P_{i+1}') = F(P_i') + n * delta_1
+\end{lstlisting}
+\paragraph{所有直线的绘制}
+我们在前面只讲了斜率$k\in[0,1]$的直线的绘制.对于其他斜率的直线,通过适当的变换也可以做到一样的效果.\\
+\indent 首先根据起终点计算直线的斜率$k$,如果$|k|\leqslant 1$,那么遍历$x$坐标并按照上述算法更新$y$坐标(如果$k<0$,更新$y$时需将其递减);如果$|k|>1$,那么交换前述$x$和$y$的角色即可.代码实现如下:
+\begin{lstlisting}[language=Python]
+def draw_line(x0: int, y0: int, x1: int, y1: int):
+    f = (y1 - y0) < (x1 - x0)
+    if not f: x0, y0, x1, y1 = y0, x0, y1, x1
+    if x0 > x1: x0, y0, x1, y1 = x1, y1, x0, y0
+    y, sy = y0, 1 if (y1 > y0) else -1
+    dx, dy = 2 * (x1 - x0), 2 * (y1 - y0)
+    dydx, F = dy - dx, dy - dx // 2
+    for x in range(x0, x1 + 1):
+        if f: draw(x, y)
+        else: draw(y, x)
+        if F < 0:
+            F += dy
+        else: 
+            y += sy
+            F += dydx
+\end{lstlisting}
+\subsection{多边形填充}
+\subsubsection{多边形的光栅化}
+三角形是最简单的多边形,也是多边形的基本组成部分.最简单的办法是枚举所有可能的像素点,判断其是否在三角形内.
+\begin{lstlisting}[language=Python]
+def draw_triangle(x0: int, y0: int, x1: int, y1: int, x2: int, y2: int):
+    xmin, xmax = min(x0, x1, x2), max(x0, x1, x2)
+    ymin, ymax = min(y0, y1, y2), max(y0, y1, y2)
+    for x in range(xmin, xmax + 1):
+        for y in range(ymin, ymax + 1):
+            if inside(x, y, x0, y0, x1, y1, x2, y2):
+            draw(x, y)
+\end{lstlisting}
+要判断点$Q$是否在三角形内,可以将边按逆时针顺序排列,并将边逆时针旋转$90^\circ$得到的法向量记作$\vec{N}_i(i=0,1,2)$.各$\vec{N}_i$都指向三角形内部,于是只要各$F_i(Q)=\vec{N}_i\cdot\overrightarrow{P_iQ}>0$即可说明$Q$在三角形内.\\
+\indent 然而,上面的方法对于每个点都要计算三次点积,效率不高.注意到我们每次总是在按行填充像素,因此只要维护每行的起点$x_L$和终点$x_R$即可.我们也不必通过点积计算点的位置,只要根据边的斜率和上一行的起终点更新即可(即使用DDA算法更新起终点).这就是\tbf{扫描线算法(Scanline Algorithm)}.\\
+\indent 对于多边形,也可以用扫描线算法绘制,但需要注意非凸的情形.此时我们需要根据交点的数目按奇偶规则填充像素.假定交点为$x_1,\cdots,x_n$,那么需要填充的部分为$x_{2k-1}$到$x_{2k}$的部分.这可以通过简单的画图证明.当然,也可以将多边形分解成多个三角形进行分别绘制.\\
+\indent 扫描线算法相比于简单的三角形算法更高效,然而在现代计算机上,其实使用的最多的是并行版的简单算法.由于三角形在图形学中的重要性,现代GPU搭载了用于三角形内外检测的专门模块,从而在硬件上实现并行的简单算法.
+\subsubsection{多边形的插值}
+\paragraph{颜色插值}
+在绘制多边形时,我们有时希望多边形的颜色是渐变的.在绘制线段时,假定两个顶点$\left(x_0,y_0\right)$和$\left(x_1,y_1\right)$的颜色为$c_0$和$c_1$,我们可以通过线性插值得到线段上$(x,y)$的颜色:
+\[c=\dfrac{(x_1-x)c_0+(x-x_0)c_1}{x_1-x_0}=c_0(1-t)+c_1t,t=\dfrac{x-x_0}{x_1-x_0}\]
+对多边形进行插值时,我们可以应用扫描线算法,每一行内的颜色由两个端点插值得到,而端点的颜色又可以由对应的边的端点插值得到.上述插值方法即\tbf{双线性插值(Bilinear Interpolation)}.\\
+\indent 在不使用扫描线算法的情况下,我们需要单独确定每个点的颜色.我们可以用\tbf{重心坐标(Barycentric Coordinate)}来做插值.设三角形的顶点为$A,B,C$,那么对于三角形内的任意一点$P$,令
+\[\alpha=\dfrac{S_{\triangle PBC}}{S_{\triangle PBC}}\ \ \ \ \ \beta=\dfrac{S_{\triangle PAC}}{S_{\triangle PBC}}\ \ \ \ \ \gamma=\dfrac{S_{\triangle PAB}}{S_{\triangle PBC}}\]
+根据中学所学的平面向量知识不难得出
+\[\alpha+\beta+\gamma=1\ \ \ \ \ \alpha\overrightarrow{PA}+\beta\overrightarrow{PB}+\beta\overrightarrow{PC}=\mbf{0}\]
+于是我们可以把$P$处的颜色表示为
+\[c=\alpha c_A+\beta c_B+\gamma c_C\]
+有关上面两种插值方式有以下结论.
+\begin{theorem}[重心插值和双线性插值的等价性]
+    重心插值是线性的,即在任意一处发生相同位移时颜色的改变值一样.特别地,三角形的重心插值和双线性插值等价.
+\end{theorem}
+\begin{proof}
+    仍然设三角形的顶点为$A\left(x_0,y_0\right),B\left(x_1,y_1\right),C\left(x_2,y_2\right)$,并设$P\left(x,y\right)$在三角形内.重心坐标的表示要求
+    \[\left\{\begin{array}{l}
+        \alpha_P(x_0-x)+\beta_P(x_1-x)+\gamma_P(x_2-x)=0\\
+        \alpha_P(y_0-y)+\beta_P(y_1-y)+\gamma_P(y_2-y)=0\\
+        \alpha_P+\beta_P+\gamma_P=1
+    \end{array}\right.\]
+    这一线性方程组具有唯一解
+    \[\left\{\begin{array}{l}
+        \alpha_P=\dfrac{\left(y-y_1\right)\left(x_2-x_1\right)-\left(x-x_1\right)\left(y_2-y_1\right)}{\left(y_0-y_1\right)\left(x_2-x_1\right)-\left(x_0-x_1\right)\left(y_2-y_1\right)}\\
+        \beta_P=\dfrac{\left(y-y_2\right)\left(x_0-x_2\right)-\left(x-x_2\right)\left(y_0-y_2\right)}{\left(y_1-y_2\right)\left(x_0-x_2\right)-\left(x_1-x_2\right)\left(y_0-y_2\right)}\\
+        \gamma_P=\dfrac{\left(y-y_0\right)\left(x_1-x_0\right)-\left(x-x_0\right)\left(y_1-y_0\right)}{\left(y_2-y_0\right)\left(x_1-x_0\right)-\left(x_2-x_0\right)\left(y_1-y_0\right)}
+    \end{array}\right.\]
+    $\alpha_P,\beta_P$和$\gamma_P$都是关于$x,y$的线性函数,因此$P$处的颜色$c_P$可以写为如下形式:
+    \[c_P=k_1x+k_2y+C\]
+    其中$k_1,k_2,C$与$x,y$无关.因此,重心插值是线性的.\\
+    \indent 现在来证明重心插值和双线性插值等价.如果将颜色$c$作为三维空间中的$z$坐标,那么这两种插值方式都在空间中描绘了一个平面.它们都过三角形的顶点对应的$\left(x_i,y_i,c_i\right)$,因而对应同一平面,从而等价.
+\end{proof}
+\paragraph{多边形的拉伸}
+我们以图片的拉伸作为多边形插值的例子.考虑一张四边形图片,顶点为$A,B,C,D$,现将这张图片拉伸到屏幕上的四边形$A'B'C'D'$.我们可以在原图建立直角坐标系,每个顶点对应$\left(u_i,v_i\right)$,在拉伸后顶点和边上的坐标值不变(这可以先由边的线性插值得到),然后对四边形内的点进行双线性插值.上面的方法称作\tbf{UV坐标映射(UV Mapping)}.\\
+\indent 尽管三角形的重心插值和双线性插值等价,但四边形没有唯一的插值方法.直接对其双线性插值和分解成两个三角形进行插值得到的结果不同.
+\subsection{曲线绘制}
+\subsubsection{曲线数学基础}
+一般而言,我们可以把曲线(以及以后的曲面)的表示方式分为显式表示和隐式表示.
+\begin{definition}[显式表示]
+    显式表示是可以直接通过表达式得到点的表示方式.例如,平面上的圆的参数方程即显示表示:
+    \[\begin{cases}
+        x=r\cos t\\
+        y=r\sin t
+    \end{cases}t\in[0,2\pi)\]
+    一般的二次曲线也是显示表示:
+    \[y=ax^2+bx+c\]
+\end{definition}
+\begin{definition}[隐式表示]
+    隐式表示是指通过隐式方程来表示曲线(或曲面),而不直接给出参数到坐标的映射的表示方法.例如,平面上的圆可以表示为隐式方程
+    \[f(x,y)=x^2+y^2-r^2=0\]
+\end{definition}
+隐式表示可以更容易地分辨曲线的内外侧,但相应地不容易直接得到曲线的形状.因此,在曲线绘制时更常用显式表示.
+\subsubsection{曲线插值与基函数}
+\begin{definition}[基函数]
+    给定$n+1$个点$(x_0,y_0),\cdots,(x_n,y_n)$,如果存在$n+1$个函数$\phi_0(x),\cdots,\phi_n(x)$,使得
+    \[\phi_i(x_j)=\begin{cases}
+        1&i=j\\
+        0&i\neq j
+    \end{cases}\]
+    那么称$\phi_i(i=0,\cdots,n)$为这些点的\tbf{基函数(Basis Function)}.对这些点插值的结果可以写作
+    \[y=\sum_{i=0}^ny_i\phi_i(x)\]
+    这恰好是过各点的曲线,具体形状由基函数的性质决定.
+\end{definition}
+\subsubsection{Bezier曲线}
+\paragraph{Bezier曲线的定义}
+Bezier曲线是计算机图形学中常用的一种参数曲线,由法国工程师Pierre Bézier在20世纪60年代为汽车车身设计而开发.它们广泛应用于计算机图形学、动画、字体设计等领域.\\
+\indent Bezier曲线通过一组控制点来定义.我们先来看如何构造二阶Bezier曲线.给定三个控制点$\vec{P}_0,\vec{P}_1,\vec{P}_2$(这里的粗体表示原点到这一点的向量,下同),我们可以通过两轮线性插值得到曲线.首先,由参数$t$对$\overrightarrow{P_0P_1}$和$\overrightarrow{P_1P_2}$做线性插值:
+\[\vec{Q}_0(t)=(1-t)\vec{P}_0+t\vec{P}_1\]
+\[\vec{Q}_1(t)=(1-t)\vec{P}_1+t\vec{P}_2\]
+然后用同一个参数$t$对$\overrightarrow{Q_0Q_1}$做线性插值:
+\[\vec{S}(t)=(1-t)\vec{Q}_0(t)+t\vec{Q}_1(t)\]
+当$t$取遍$[0,1]$时,$\vec{S}$对应的点的集合就是二阶Bezier曲线.上述过程称作\tbf{德卡斯特里奥算法(De Casteljau's Algorithm)},效率高,编程方便,因而被广泛使用.\\
+\indent 类似地, $n$阶Bezier曲线由$n+1$个控制点$\vec{P}_0,\vec{P}_1,\cdots,\vec{P}_n$通过$n$轮线性插值得到.\\
+\indent 下面推导Bezier曲线的显式表达式.首先考虑$n=2$的情形,将前述表达式展开可得
+\[\begin{aligned}
+    \vec{S}
+    &= (1-t)\vec{Q}+t\vec{Q}_1\\
+    &= (1-t)\left[(1-t)\vec{P}_0+t\vec{P}_1\right]+t\left[(1-t)\vec{P}_1+t\vec{P}_2\right]\\
+    &= (1-t)^2\vec{P}_0+2t(1-t)\vec{P}_1+t^2\vec{P}_2
+\end{aligned}\]
+可以发现,$\vec{P}_0$,$\vec{P}_1$和$\vec{P}_2$的系数分别是$((1-t)+t)^2$进行二项式展开的系数.因此,我们可以猜测$n$阶Bezier曲线的显式表达式为
+\[\vec{S}(t)=\sum_{k=0}^{n}\begin{pmatrix}n\\k\end{pmatrix}(1-t)^kt^{n-k}\vec{P}_k\]
+其中
+\[B_{n,k}(t)=\begin{pmatrix}n\\k\end{pmatrix}(1-t)^kt^{n-k}\]
+被称作\tbf{$n$阶伯恩斯坦多项式(Bernstein Polynomial)}.
+\paragraph{Bezier曲线的性质}
+首先有
+\[\vec{S}(0)=\vec{P}_0\ \ \ \ \ \vec{S}(1)=\vec{P}_n\]
+因此Bezier曲线经过第一个和最后一个控制点.\\
+\indent 其次有
+\[\dfrac{\di\vec{S}(t)}{\di t}=n\sum_{
+k=0}^{n-1}B_{n-1,k}(t)(\vec{P}_{k+1}-\vec{P}_k
+)\]
+于是
+\[\vec{S}'(0)=n\left(\vec{P}_1-\vec{P}_0\right)\ \ \ \ \ \vec{S}'(1)=n\left(\vec{P}_n-\vec{P}_{n-1}\right)\]
+可见, Bezier曲线在端点处的切线方向分别沿着$\overrightarrow{P_0P_1}$和$\overrightarrow{P_{n-1}P_n}$的方向.
+\begin{theorem}[Bezier曲线与端点的关系]
+    设Bezier曲线的控制点依次为$P_0,\cdots,P_n$,则它经过$P_0$和$P_n$,且在端点处的切线方向分别沿着$\overrightarrow{P_0P_1}$和$\overrightarrow{P_{n-1}P_n}$的方向.
+\end{theorem}
+因此,如果希望两条Bezier曲线首尾相接且切线连续,只需让它们的端点重合且相邻的控制点共线即可.\\
+\indent 于是,三阶Bezier曲线是比较常用的,既可以自由控制曲线的形状,复杂度也不高.\\
+\indent Bezier曲线的另一个重要性质是\tbf{凸包性质}.
+\begin{definition}[凸包性质]
+    设$\vec{P}_0,\vec{P}_1,\cdots,\vec{P}_n$为Bezier曲线的控制点,那么Bezier曲线完全包含在由这些控制点构成的凸多边形内.
+\end{definition}
+\begin{proof}
+    由于$B_{n,k}(t)\geqslant 0$且$\displaystyle\sum_{k=0}^nB_{n,k}(t)=1$,因此$\vec{S}(t)$是控制点的凸组合,从而在凸包内.
+\end{proof}
+\subsubsection{曲线光栅化}
+\paragraph{中点圆算法}
+中点圆算法(Midpoint Circle Algorithm)是Bresenham教授在1962年提出的一种高效的光栅化圆的算法,其主要思路与Bresenham直线算法类似.\\
+\indent 为了方便考虑,我们假定要绘制的圆以原点为中心,半径为$r$.由于圆的对称性,我们只需计算第一象限的$1/8$圆,然后将结果对称变换到其他象限即可.\\
+\indent 考虑$\dfrac\pi4$到$\dfrac\pi2$的$1/8$圆,我们从$(0,r)$开始按顺时针方向绘制.设当前绘制的点为$P_i(x_i,y_i)$,那么下一个点$P_{i+1}$也仅有两种可能: $P_{i+1}=(x_i+1,y_i)$或$P_{i+1}=(x_i+1,y_i-1)$.我们用中点$P_i'=\left(x_i+1,y_i-\dfrac12\right)$来判断下一个点的位置,如果$P_i'$在圆内,就向右移,否则向右下移动.圆的隐式方程为
+\[F(x,y)=x^2+y^2-r^2=0\]
+同样,如果$f\left(P_{i}'\right)<0$,那么$P_i'$在圆内,否则在圆外.我们可以只对$F\left(P_i'\right)$进行更新,显然每次判断点的移动情况和像素的移动情况一样,因此
+\[F\left(P_{i+1}'\right)=F\left(x_{P_i'}+\Delta x,y_{P_i'}+\Delta y\right)=F\left(P_i'\right)+2x_{P_i'}\Delta x+\left(\Delta x\right)^2+2y_{P_i'}\Delta y+\left(\Delta y\right)^2\]
+其中$(\Delta x,\Delta y)=(1,0)$或$(1,-1)$.由于$P_{i}'$的坐标带有分数,因此我们将上述式子转写为关于$P_{i}$的坐标的式子,即
+\[F\left(P_{i+1}'\right)=F\left(P_i'\right)+2x_i\Delta x+2\Delta x+\left(\Delta x\right)^2+2y_i\Delta y-\Delta y+\left(\Delta y\right)^2\]
+于是向右更新像素(即$(\Delta x,\Delta y)=(1,0)$时)需要将判断函数加上$2x_i+3$,向右下更新像素(即$(\Delta x,\Delta y)=(1,-1)$时)需要将判断函数加上$2x_i-2y_i+5$.初始条件下有
+\[F\left(1,r-\dfrac12\right)=\dfrac54-r\]
+既然我们涉及的计算都是整数计算,因此将初始值设为$1-r$并不改变判断正负的结果.当然,如果半径$r$是浮点数,就需要先计算上式后取整了.\\
+\indent 综上,我们可以将中点圆算法写成下面的程序:
+\begin{lstlisting}[language=Python]
+def draw_circle(xc: int, yc: int, r: int):
+    x, y = 0, r
+    F = 1 - r
+    while x <= y:
+        draw(xc + x, yc + y); draw(xc + y, yc + x)
+        draw(xc - x, yc + y); draw(xc - y, yc + x)
+        draw(xc + x, yc - y); draw(xc + y, yc - x)
+        draw(xc - x, yc - y); draw(xc - y, yc - x)
+        if F < 0: # F(P_i') < 0
+            F += 2 * x + 3 # F(P_{i+1}) = F(P_i) + 2 * x_i + 3
+        else: # F(P_i') >= 0
+            y -= 1
+            F += 2 * (x - y) + 5 # F(P_{i+1}) = F(P_i) + 2 * (x_i - y_i) + 5
+        x += 1
+\end{lstlisting}
+\end{document}
