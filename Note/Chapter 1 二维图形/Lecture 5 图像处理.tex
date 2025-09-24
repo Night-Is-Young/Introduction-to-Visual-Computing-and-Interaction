@@ -22,6 +22,88 @@
     \end{tabular}
     \caption{位图与矢量图的比较}
 \end{table}
+\subsection{Fourier变换与图像的频谱}
+\subsubsection{Fourier级数的复变函数形式}
+在高等数学中,对周期为$T$的函数$f(x)$的Fourier级数展开为
+\[f(x)=\dfrac{a_0}{2}+\sum_{n=1}^{\infty}\left[a_n\cos\left(\dfrac{2n\pi x}{T}\right)+b_n\sin\left(\dfrac{2n\pi x}{T}\right)\right]\]
+其中
+\[a_0=\dfrac{2}{T}\int_{-T/2}^{T/2}f(x)\di x,\ \ a_n=\dfrac{2}{T}\int_{-T/2}^{T/2}f(x)\cos\left(\dfrac{2n\pi x}{T}\right)\di x,\ \ b_n=\dfrac{2}{T}\int_{-T/2}^{T/2}f(x)\sin\left(\dfrac{2n\pi x}{T}\right)\di x\]
+\indent 考虑到复平面圆周与简谐波的关系(这也方便各种变换与数学处理),我们尝试把上面的式子改写成复变函数的形式.由Euler公式
+\[\e^{\i\theta}=\cos\theta+\i\sin\theta\]
+可得
+\[\cos\theta=\dfrac{\e^{\i\theta}+\e^{-\i\theta}}{2},\ \ \sin\theta=\dfrac{\e^{\i\theta}-\e^{-\i\theta}}{2\i}\]
+令$\omega=\dfrac{2\pi}{T}$,于是
+\[\begin{aligned}
+    f(x)
+    &= \dfrac{a_0}{2}+\sum_{n=1}^{\infty}\left[a_n\cos(n\omega x)+b_n\sin(n\omega x)\right]\\
+    &= \dfrac{a_0}{2}+\sum_{n=1}^{\infty}\left(a_n\dfrac{\e^{\i n\omega x}+\e^{-\i n\omega x}}{2}+b_n\dfrac{\e^{\i n\omega x}-\e^{-\i n\omega x}}{2\i}\right)\\
+    &= \dfrac{a_0}{2}+\sum_{n=1}^{\infty}\left(\dfrac{a_n-\i b_n}{2}\e^{\i n\omega x}+\dfrac{a_n+\i b_n}{2}\e^{-\i n\omega x}\right)
+\end{aligned}\]
+为了将求和的两部分统一起来,注意到
+\[a_{-n}=\dfrac{2}{T}\int_{-T/2}^{T/2}f(x)\cos\left(\dfrac{-2n\pi x}{T}\right)\di x=a_n\]
+\[b_{-n}=\dfrac{2}{T}\int_{-T/2}^{T/2}f(x)\sin\left(-\dfrac{2n\pi x}{T}\right)\di x=-b_n\]
+于是上式可以改写为
+\[f(x)
+=\dfrac{a_0}{2}+\sum_{n=1}^{\infty}\dfrac{a_n-\i b_n}{2}\e^{\i n\omega x}+\sum_{n=1}^{\infty}\dfrac{a_{-n}-\i b_{-n}}{2}\e^{\i(-n)\omega x}
+=\sum_{n=-\infty}^{\infty}\dfrac{a_n-\i b_n}{2}\e^{\i n\omega x}\]
+定义$C_n=\dfrac{a_n-\i b_n}{2}$,就可以得到Fourier级数写成复变函数的形式:
+\[f(x)=\sum_{n=-\infty}^{\infty}C_n\e^{\i n\omega x}\]
+现在,我们考虑系数$C_n$的求法.我们在上述展开式两边乘以$\e^{-\i m\omega x}$,然后在一个周期(例如$[0,T]$)上积分,就有
+\[\int_{0}^{T}f(x)\e^{-\i m\omega x}\di x
+=\int_{0}^{T}\left(\sum_{n=-\infty}^{+\infty}C_n\e^{\i(n-m)\omega x}\right)\di x
+=\sum_{n=-\infty}^{+\infty}C_n\int_{0}^{T}\e^{\i(n-m)\omega x}\di x\]
+当$n=m$时,上面右边的积分值为$T$,否则令$k=n-m$就有
+\[\int_0^{T}\e^{\i(n-m)\omega x}\di x=\int_0^{T}\exp\left(\dfrac{2\pi\i kx}{T}\right)\di x=\dfrac{T\left(\e^{2k\pi\i}-1\right)}{2\pi\i k}=0\]
+于是
+\[\int_{0}^{T}f(x)\e^{-\i m\omega x}\di x=TC_m\]
+这样就有
+\[C_n=\dfrac{1}{T}\int_{0}^{T}f(x)\e^{-\i n\omega x}\di x\]
+\begin{theorem}[Fourier级数展开的复变函数形式]
+    设$f(x)$为周期为$T$的满足Dirichlet条件的函数,则$f(x)$可以展开为Fourier级数
+    \[f(x)=\sum_{n=-\infty}^{\infty}C_n\e^{\i n\omega x}\]
+    其中$\omega=\dfrac{2\pi}{T}$,系数$C_n$由下式给出:
+    \[C_n=\dfrac{1}{T}\int_{0}^{T}f(x)\e^{-\i n\omega x}\di x\]
+\end{theorem}
+\subsubsection{从Fourier级数到Fourier变换}
+那么对于非周期函数,我们可以将其视作周期$T\to+\infty$的周期函数,此时角频率$\dfrac{2\pi}{T}\to0$, Fourier级数中的$n\omega$也应当取遍任意实数.因此,将Fourier展开中的求和变成积分,并且将系数$C_n$换成有关$\omega$的函数$F(\omega)$,即
+\[f(x)=\int_{-\infty}^{+\infty}F(\omega)\e^{\i \omega x}\di\omega\]
+同样地,每个$\omega$对应的系数$F(\omega)$也可以由$f(x)$求出,即
+\[F(\omega)=\dfrac{1}{2\pi}\int_{-\infty}^{+\infty}f(x)\e^{-\i \omega x}\di x\]
+在很多场合下,通常令$f=\dfrac{\omega}{2\pi}=\dfrac{1}{T}$为频率(更经常地, $f$也被记作$\omega$,注意与前面推导中的角频率加以区分),这就得到Fourier变换的标准形式.同时,我们在后面附上一个比较严谨的证明.
+\begin{theorem}
+    设$f(x)$满足Fourier变换的条件,则$f(x)$的Fourier变换为
+    \[F(\omega)=\mathcal{F}\circ f=\int_{-\infty}^{+\infty}f(x)\e^{-2\pi\i\omega x}\di x\]
+    其逆变换为
+    \[f(x)=\mathcal{F}^{-1}\circ F=\int_{-\infty}^{+\infty}F(\omega)\e^{2\pi\i\omega x}\di\omega\]
+\end{theorem}
+\begin{proof}
+    证明中的$\omega$采取我们后来给出的定义.由Fourier级数展开的复变函数形式,对于周期为$T$的函数$f(x)$,有
+    \[f(x)=\sum_{n=-\infty}^{+\infty}C_n\e^{2\pi\i n\omega x}=\sum_{n=-\infty}^{+\infty}\dfrac{C_n}{\omega}\left(\omega\e^{2\pi\i n\omega x}\right)\]
+    其中$\omega=1/T$而
+    \[\dfrac{C_n}{\omega}=\dfrac{1}{\omega}\cdot\dfrac{1}{T}\int_0^{T}f(x)\e^{-2\pi\i n\omega x}\di x=\int_{-T/2}^{T/2}f(x)\e^{-2\pi\i n\omega x}\di x\]
+    现在令$T\to\infty$,于是$\omega=1/T\to0$.现在令$t=n\omega$,于是
+    \[\begin{aligned}
+        f(x)
+        &= \lim_{\omega\to0}\sum_{n=-\infty}^{+\infty}\dfrac{C_n}{\omega}\left(\omega\e^{2\pi\i n\omega x}\right) \\
+        &= \lim_{\omega\to0}\sum_{n=-\infty}^{+\infty}\omega\e^{2\pi\i n\omega x}\left(\int_{-T/2}^{T/2}f(x)\e^{-2\pi\i n\omega x}\di x\right) \\
+        &= \lim_{\omega\to0}\sum_{n=-\infty}^{+\infty}\e^{2\pi\i t x}\left(\int_{-\infty}^{+\infty}f(x)\e^{-2\pi\i t x}\di x\right)\omega\\
+    \end{aligned}\]
+    上面的求和与Riemann积分的定义一致,因此
+    \[f(x)=\int_{-\infty}^{+\infty}\e^{2\pi\i t x}\left(\int_{-\infty}^{+\infty}f(x)\e^{-2\pi\i t x}\di x\right)\di t\]
+    把$t$换成$\omega$,将中间的积分记作$F(\omega)$,即可证得定理.
+\end{proof}
+\subsubsection{离散信号的Fourier变换}
+对于无限长度的离散信号$\{x[n]\}_{n\in\mathcal{Z}}$,我们可以把无穷积分换成无穷级数求和.记其Fourier变换的结果为$\hat{x}(\omega)$,则
+\[\hat{x}(\omega)=\sum_{n=-\infty}^{+\infty}x[n]\e^{-2\pi\i\omega n}\]
+\indent 然而,计算机存储的信号数目是有限的.因此,对于一段有限长度为$N$的离散信号$\{x[n]\}_{0\leqslant n< N}$,我们假设它可以周期延拓(相当于$\{x[n]\}$是周期为$N$的函数的$N$个采样点),这时的Fourier变换即Fourier展开,频率的选取是离散的;并且由于我们只有$N$个数据点,因此最多只有$N$个独立的频率对应的简谐波合成了这一离散信号.于是
+\[\hat{x}[k]=\sum_{n=0}^{N-1}\exp\left(-\dfrac{2\pi\i nk}{N}\right)x[n],\ \ k=0,1,\cdots,N-1\]
+它的逆变换为
+\[x[n]=\dfrac{1}{N}\sum_{k=0}\exp\left(\dfrac{2\pi\i nk}{N}\right)\hat{x}[k]\]
+同样地,二维情形下的Fourier变换为
+\[F(u,v)=\int_{-\infty}^{+\infty}\int_{-\infty}^{+\infty}f(x,y)\e^{-2\pi\i(ux+vy)}\di x\di y\]
+其中$\e^{-2\pi\i(ux+vy)}$表示方向向量为$(u,v)$,频率为$\sqrt{u^2+v^2}$的复平面上的波(同样地由正弦波和余弦波组成).也同样地,离散情形下的二维Fourier变换为
+\[\hat{\mat{I}}(u,v)=\sum_{x=0}^{M-1}\sum_{y=0}^{N-1}\mat{I}(x,y)\exp\left[-2\pi\i\left(\dfrac{ux}{M}+\dfrac{vy}{N}\right)\right],\ \ 0\leqslant u<M,0\leqslant v<N\]
+于是$\hat{\mat{I}}(u,v)$也是一个$M\times N$的矩阵,这就是$\mat{I}$的频谱.对频谱$\hat{\mat{I}}$做逆Fourier变换可以还原出图像$\mat{I}$.
 \subsection{图像滤波}
 \subsubsection{卷积}
 卷积是图像处理中常用的操作,用于图像的平滑,锐化,边缘检测等.
@@ -112,7 +194,55 @@
 \[\dfrac{\p^2f}{\p y^2}(x,y)=[f(x,y+1)-f(x,y)]-[f(x,y)-f(x,y-1)]\]
 于是
 \[\nabla^2 f(x,y)=f(x+1,y)+f(x-1,y)+f(x,y+1)+f(x,y-1)-4f(x,y)\]
-按照一定的方式排列所有$(x,y)\in\Omega$即可得到一个线性方程组.求解这个线性方程组即可得到每一点的像素值.
+按照一定的方式排列所有$(x,y)\in\Omega$即可得到一个线性方程组.求解这个线性方程组即可得到每一点的像素值.各种数值方法,例如Jacobi迭代法,Gauss-Seidel迭代法,共轭梯度法等都可以用来求解这个线性方程组.
 \subsection{图像分割}
-大多数图片都有前景与背景,但图像只有每个像素点的信息.为了从颜色信息还原出前景与背景信息,
+大多数图片都有前景与背景,但图像只有每个像素点的信息.为了从颜色信息还原出前景与背景信息,我们需要图像分割(即俗称的抠图).\\
+\indent 令$\mat{C}$表示输入的图像,$\mat{F}$表示前景图,$\mat{B}$表示背景图(假定它们都是RGB图像),$\alpha$表示前景的透明度,则有
+\[\mat{C}=\alpha\mat{F}+(1-\alpha)\mat{B}\]
+对于某一像素点$i$,有下列方程组:
+\[\left\{\begin{array}{l}
+    \mat{C}_i^R=\alpha_i\mat{F}_i^R+(1-\alpha_i)\mat{B}_i^R\\
+    \mat{C}_i^G=\alpha_i\mat{F}_i^G+(1-\alpha_i)\mat{B}_i^G\\
+    \mat{C}_i^B=\alpha_i\mat{F}_i^B+(1-\alpha_i)\mat{B}_i^B
+\end{array}\right.\]
+除去$\mat{C}_i^R,\mat{C}_i^G,\mat{C}_i^B$为已知量外,有7个未知数,但只有3个方程.即使知道背景$\mat{B}$,未知数数目也大于方程数目,因此这方程组欠定,有无穷多组解.
+\subsubsection{蓝/绿幕抠图}
+如果背景是纯色(通常是蓝色或绿色),那么可以按照下面的办法处理(以蓝色背景为例):假设背景图$\mat{B}$只有蓝色分量$\mat{B}_i^B$,并且这一分量已知;另外前景图$\mat{F}$没有蓝色分量.于是上述方程组变为
+\[\left\{\begin{array}{l}
+    \mat{C}_i^R=\alpha_i\mat{F}_i^R\\
+    \mat{C}_i^G=\alpha_i\mat{F}_i^G\\
+    \mat{C}_i^B=(1-\alpha_i)\mat{B}_i^B
+\end{array}\right.\]
+其中$\alpha_i,\mat{F}_i^R,\mat{F}_i^G$是未知量.这样就可以解得唯一解,从而得到前景$\mat{F}$.\\
+\indent 这一技术主要应用在电影特效制作中,因为可以使用纯色幕布控制拍摄背景.应用蓝色/绿色主要是因为人身上的颜色以红色/黄色居多,蓝色/绿色成分相对较少.\\
+\indent 蓝/绿幕抠图的缺点在于,如果前景中有蓝色/绿色的部分,那么这些部分会被误认为是背景而被抠掉.因此这项技术不适用于透明物体的图像分割.
+\subsubsection{三角抠图}
+既然我们缺乏信息,另一种简单的办法是保持$\mat{F}$不变,拍摄另一张背景$\hat{\mat{B}}$对应的图像$\hat{\mat{C}}$,并且假定$\mat{B}$和$\hat{\mat{B}}$已知.于是有
+\[\left\{\begin{array}{l}
+    \mat{C}_i^R=\alpha_i\mat{F}_i^R+(1-\alpha_i)\mat{B}_i^R\\
+    \mat{C}_i^G=\alpha_i\mat{F}_i^G+(1-\alpha_i)\mat{B}_i^G\\
+    \mat{C}_i^B=\alpha_i\mat{F}_i^B+(1-\alpha_i)\mat{B}_i^B\\
+    \hat{\mat{C}}_i^R=\alpha_i\mat{F}_i^R+(1-\alpha_i)\hat{\mat{B}}_i^R\\
+    \hat{\mat{C}}_i^G=\alpha_i\mat{F}_i^G+(1-\alpha_i)\hat{\mat{B}}_i^G\\
+    \hat{\mat{C}}_i^B=\alpha_i\mat{F}_i^B+(1-\alpha_i)\hat{\mat{B}}_i^B
+\end{array}\right.\]
+这里有四个未知数和六个方程,可以通过最小二乘法求得满意的解.\\
+\indent 这个方法的要求相比蓝/绿幕抠图较宽松,它可以处理各种透明的物体,也不要求背景的颜色.然而,它要求拍摄图片时前景物体相对相机的位置必须一致,在不能方便地更换背景时也比较麻烦.
+\subsubsection{Bayesian抠图}
+相比前面两种方法对背景或拍摄角度的限制, Bayesian抠图是更智能普适的算法.除去输入图像$\mat{C}$,它还需要提供一张三值图,用于标记每个像素点属于背景,前景还是不确定点.\\
+\indent 记输入的原图为$\mat{C}$,三值图为$\mat{T}$.我们的目标是用最大似然法求出标量场$\alpha$,前景图$\mat{F}$和背景图$\mat{B}$,即最大化问题
+\[\max_{\alpha,\mat{F},\mat{B}}P\left(\alpha,\mat{F},\mat{B}|\mat{C}\right)\]
+假定像素点之间相互独立.考虑像素点$i$(对应的$\mat{C}_i$等都是包含RGB通道的三维向量,因此下面需要用到多元高斯分布),由Bayes公式有
+\[P\left(\alpha_i,\mat{F}_i,\mat{B}_i|\mat{C}_i\right)=\dfrac{P\left(\mat{C}_i|\alpha_i,\mat{F}_i,\mat{B}_i\right)P\left(\alpha_i,\mat{F}_i,\mat{B}_i\right)}{P(\mat{C}_i)}\]
+其中$P(\mat{C}_i)$为常数.为了简化问题,假定$\alpha,\mat{F}_i$和$\mat{B}_i$相互独立,并且$P\left(\alpha_i\right)$也是常数.于是对上述取对数可得
+\[\ln P\left(\alpha_i,\mat{F}_i,\mat{B}_i|\mat{C}_i\right)=\ln P\left(\mat{C}_i|\alpha_i,\mat{F}_i,\mat{B}_i\right)+\ln P\left(\mat{F}_i\right)+\ln P\left(\mat{B}_i\right)+\text{const}\]
+\indent 现在就需要对上述目标函数中的各个概率建模.我们假定上述三个分布都是高斯分布.对于第一个分布$P\left(\mat{C}_i|\alpha_i,\mat{F}_i,\mat{B}_i\right)$,其均值为$\alpha_i\mat{F}_i+(1-\alpha_i)\mat{B}_i$,并且假定分布是各向同性的,其方差为可调参数$\sigma_c^2$.于是
+\[P\left(\mat{C}_i|\alpha_i,\mat{F}_i,\mat{B}_i\right)=\dfrac{1}{(2\pi)^{3/2}\sigma_c^3}\exp\left(-\dfrac{\left|\left|\mat{C}_i-\alpha_i\mat{F}_i-(1-\alpha_i)\mat{B}_i\right|\right|^2}{2\sigma_c^2}\right)\]
+后面两个分布是类似的.以第二个分布$P\left(\mat{F}_i\right)$为例,其分布可以写为如下形式:
+\[P\left(\mat{F}_i\right)=\dfrac{1}{(2\pi)^{3/2}||\boldsymbol{\Sigma}_{\mat{F}_i}||^{1/2}}\exp\left(-\dfrac{1}{2}(\mat{F}_i-\boldsymbol{\mu}_{\mat{F}_i})^{\text{t}}\boldsymbol{\Sigma}_{\mat{F}_i}^{-1}(\mat{F}_i-\boldsymbol{\mu}_{\mat{F}_i})\right)\]
+其中均值$\boldsymbol{\mu}_{\mat{F}_i}$和协方差矩阵$\boldsymbol{\Sigma}_{\mat{F}_i}$可以通过在三值图中标记为前景的像素点的颜色来估计.具体而言,考虑$i$的一个邻域$S$(通常是以$i$为中心的圆或矩形)内的所有标记为前景的像素点构成的集合$\mathcal{N}_{\mat{F}_i}$,则有
+\[\boldsymbol{\mu}_{\mat{F}_i}=\dfrac{1}{W}\sum_{j\in\mathcal{N}_{\mat{F}_i}}w_j\mat{F}_j\ \ \ \ \ \boldsymbol{\Sigma}_{\mat{F}_i}=\dfrac{1}{W}\sum_{j\in\mathcal{N}_{\mat{F}_i}}w_j\left(\mat{F}_j-\boldsymbol{\mu}_{\mat{F}_i}\right)\left(\mat{F}_j-\boldsymbol{\mu}_{\mat{F}_i}\right)^{\text{t}}\]
+其中$w_j$为权重, $W=\displaystyle\sum_{j\in\mathcal{N}_{\mat{F}_i}}w_j$为归一化常数.权重$w_j$由该点的透明度$\alpha_j$和高斯距离权值$g_j$(以像素$i$为中心,方差为$8$的高斯分布上$j$所在位置的取值)决定,有$w_j=\alpha_j^2g_j$.这样,$\alpha_j$越高,意味着这一采样点越有可能属于前景,权重就越大.同样地,距离越近,权重$g_j$也越大.\\
+\indent 对于背景分布$P\left(\mat{B}_i\right)$,计算方法也是一致的,只需把权重换成$w_j=(1-\alpha_j)^2g_j$即可.\\
+\indent 把上述三个分布代入目标函数,然后通过迭代法求最大值,即可完成目标.
 \end{document}
