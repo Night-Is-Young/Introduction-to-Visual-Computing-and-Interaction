@@ -1,0 +1,77 @@
+\documentclass{ctexart}
+\usepackage{Note}
+\begin{document}
+\section{几何表示}
+\subsection{几何形状的表示方法}
+\tbf{几何形状(geometric shape)}是指空间中的一组特定点的集合.对于二维空间,常见的几何图形包括线段,多边形,圆等等;对于三维空间,常见的几何图形包括线,面,体等.
+\subsubsection{连续函数表示法}
+和平面图形一样,空间图形也可以用连续函数表示.例如,空间中的直线可以表示为
+\[\left\{(x,y,z):Ax+By+Cz+D=0,x,y,z\in\R\right\}\]
+空间中的球面可以表示为
+\[\left\{(x,y,z):x^2+y^2+z^2=R^2,x,y,z\in\R\right\}\]
+\begin{definition}[连续函数表示法]
+    一般地,对于空间中的几何形状$M$,可以用一个特定的连续函数$S_{M}(x,y,z)$刻画其表面$\p M$:
+    \[\left\{(x,y,z):S_M(x,y,z)=0,x,y,z\in\R\right\}\]
+\end{definition}
+连续函数可以精确地刻画几何形状,也方便研究其性质.然而,对于复杂的图形(尤其是复杂的曲线或曲面),难以找到合适的函数来表示,这就需要离散化的办法.
+\subsubsection{点云}
+通过类似雷达的工作方式对几何形状$M$进行扫描,可以获知$\p M$上一系列离散的点.
+\begin{definition}[点云]
+    \tbf{点云(Point Cloud)}是一组三维空间中有限个点构成的集合:
+    \[\left\{\left(x_i,y_i,z_i\right):i=1,\cdots,N\right\}\]
+    这集合描述的几何形状$M$满足:对任意点云中的点$\left(x_i,y_i,z_i\right)$,都有$\left(x_i,y_i,z_i\right)\in\p M$,即
+    \[S_M\left(x_i,y_i,z_i\right)=0\]
+\end{definition}
+点云作为原本几何形状的采样结果,保留了原形状的一部分几何信息，,使得我们可以在点云上进行一些表面性质的计算,例如计算法向和曲率.\\
+\indent 然而采样总是伴随着信息的损失,点云也不例外.点云的采样密度决定了它对几何细节的表示能力.更重要的是,由于点云本身的非结构化和无序性,几何形状的拓扑关系往往是最容易在点云表示中变得模糊不清的.这为基于点云的几何形状计算和处理带来了困难.
+\subsubsection{网格模型}
+为了解决点云对于拓扑形状表示的不足,我们考虑对曲面表面进行线性近似,即用一系列小的多边形片段拼接成曲面.为此,把点云中的点按照$M$的形状进行连接,可以得到一个由多边形构成的网格.
+\begin{definition}[网格模型]
+    \tbf{网格模型(Mesh Model)}是由一组顶点,边和面构成的三元组:
+    \[\mathcal{M}=(\mathcal{V},\mathcal{E},\mathcal{F})\]
+    其中$\mathcal{V}=\{\vec{v}_i=(x_i,y_i,z_i):i=1,\cdots,N\}$是顶点集合,每个顶点对应点云中的一个点; $\mathcal{E}=\{\vec{e}_{ij}=(v_i,v_j):i,j=1,\cdots,N\}$是边集合,每条边连接两个顶点; $\mathcal{F}=\{\vec{f}_k\}$是面集合,每个面$\vec{f}_k$由数个顶点组成.\\
+    $\mathcal{M}$描述的几何形状满足:对于任意面$\vec{f}_k$,其上所有点都在$\p M$上,即
+    \[\forall\left(x_k,y_k,z_k\right)\in\vec{f}_k,\ \ S_M\left(x_k,y_k,z_k\right)=0\]
+\end{definition}
+一般而言,我们要求网格是\tbf{流形}的,即每条边总是且仅被两个面共享.
+\subsection{网格表示}
+网格模型是计算机图形学中最常用的几何表示方法,我们已经在上一节介绍过其定义.在计算机中存储时,通常使用顶点列表,边列表和面列表作为储存多边形网格的数据结构;有时也会设计额外的数据结构方便邻边查找等操作.
+\subsubsection{三角网格表示法}
+我们从最简单的三角网格开始,即所有面都是三角形的网格.最简单的表示方法就是记录每个三角形的三个顶点,即\[\triangle_i=\left(\vec{v}_{i0},\vec{v}_{i1},\vec{v}_{i2}\right),\ \ \text{where}\ \vec{v}_{ij}=\left(x_{ij},y_{ij},z_{ij}\right)\]
+\begin{definition}[三角形乱序集合]
+    \tbf{三角形乱序集合(Triangle Soup)}是由一组三角形构成的集合,每个三角形包括其顶点信息.
+\end{definition}
+显然,每个顶点几乎都会被多个三角形共用,因此上面的表示方法在空间上由很大冗余.并且由于存储的乱序性,我们也不易对模型进行拓扑关系的考察.\\
+\indent 为了减少空间开销,我们可以先单独存储顶点,然后只存储每个三角形顶点在顶点列表中的索引.
+\begin{definition}[索引三角形网格]
+    \tbf{索引三角形网格(Indexed Triangle Set)}由顶点列表$\mathcal{V}$和三角形列表$\mathcal{F}$构成.其中$\mathcal{V}=\{\vec{v}_i=(x_i,y_i,z_i):i=1,\cdots,N\}$是顶点列表; $\mathcal{F}=\{\triangle_k\}$是三角形列表,每个三角形$\triangle_k$由三个顶点索引组成.
+\end{definition}
+特别地,为了方便处理,我们在存储顶点索引时可以按照逆时针方向存储.这可以保证每个三角形的法向方向一致,从而方便后续的渲染等操作.
+\subsubsection{半边数据结构}
+在网格中,我们经常会面对顶点邻接关系的查询,也需要有序地遍历顶点和面.在一般的索引三角形网格中,我们只能通过遍历所有三角形来找到某个顶点的邻接顶点,这显然效率很低.\tbf{半边数据结构(Half-Edge Data Structure)}就是一种更高效的网格表示方法.
+\subsection{网格细分}
+不难看出,通过增加组成几何表面的网格面片数量,减小每个面片的面积,可以使几何表面看起来更加光滑.
+\begin{definition}[网格细分]
+    \tbf{网格细分(Mesh Subdivision)},又称作网格的\tbf{上采样},是指通过反复细分初始的多边形网格,不断得到更精细的网格的过程.
+\end{definition}
+\subsubsection{Catmull-Clark细分}
+Catmull-Clark细分是最常用的几何表面细分方法之一,主要应用于四边形网格的细分上. Catmull-Clark细分的具体步骤如下:
+\begin{enumerate}[label=\tbf{\arabic*}.,topsep=0pt,parsep=0pt,itemsep=0pt,partopsep=0pt]
+    \item \tbf{增设面点}:对多面体的每个面片计算一个面点,该面点是该面片所有顶点的平均值:
+        \[\vec{v}_{\text{face}}=\dfrac{1}{N}\sum_{n=1}^{N}\vec{v}_n\]
+    \item \tbf{增设边点}:对多面体的每条边计算一个边点,该边点是该边两个端点$\vec{v}_1$和$\vec{v}_2$,以及相邻两个面片的面点$\vec{v}_{\text{face},1}$和$\vec{v}_{\text{face},2}$的平均值:
+        \[\vec{v}_{\text{edge}}=\dfrac{1}{4}\left(\vec{v}_1+\vec{v}_2+\vec{v}_{\text{face},1}+\vec{v}_{\text{face},2}\right)\]
+    \item \tbf{更新顶点}:对多面体原有的每个顶点$\vec{v}$,使用下面的加权平均算法更新其位置:
+        \[\vec{v}_{\text{vertex}}=\dfrac{F+2R+(N-3)\vec{v}}{N}\]
+        其中$\vec{F}$是所有以$\vec{v}$为顶点的面片的面点的均值, $\vec{R}$是所有以$\vec{v}$为端点的边的中点(注意不是\tbf{2.}中的边点)的均值, $N$是与该顶点相邻的顶点数.
+    \item \tbf{重新连接}:将每个面点$\vec{v}_{\text{face}}$与该面片所有边对应的的边点$\vec{v}_{\text{edge}}$相连;将每个新顶点$\vec{v}_{\text{vertex}}$与原有顶点所有相邻边的边点$\vec{v}_{\text{edge}}$相连.于是就形成新的细分过后的面片.
+\end{enumerate}
+\subsubsection{Loop细分}
+Loop细分是另一种常用的几何表面细分方法,主要应用于三角形网格的细分上. Loop细分的具体步骤如下:
+\begin{enumerate}[label=\tbf{\arabic*}.,topsep=0pt,parsep=0pt,itemsep=0pt,partopsep=0pt]
+    \item \tbf{增设新顶点}:对于每一条边,如果这条边被两个三角形面包含,则根据这条边的两个端点$\vec{v}_0,\vec{v}_2$和这两个三角形除这条边外各自的顶点$\vec{v}_1,\vec{v}_3$加权平均得到新顶点$\vec{v}^\ast$:
+        \[\vec{v}^\ast=\dfrac{3}{8}\left(\vec{v}_0,\vec{v}_2\right)+\dfrac{1}{8}\left(\vec{v}_1+\vec{v}_3\right)\]
+    如果这条边只被一个三角形面包含,则取边的终点得到新顶点$\vec{v}^\ast$.
+    \item \tbf{更新原有顶点}:
+\end{enumerate}
+\end{document}
