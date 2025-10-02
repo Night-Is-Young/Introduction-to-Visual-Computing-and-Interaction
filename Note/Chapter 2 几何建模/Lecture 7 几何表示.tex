@@ -70,8 +70,8 @@ Catmull-Clark细分是最常用的几何表面细分方法之一,主要应用于
 Loop细分是另一种常用的几何表面细分方法,主要应用于三角形网格的细分上. Loop细分的具体步骤如下:
 \begin{enumerate}[label=\tbf{\arabic*}.,topsep=0pt,parsep=0pt,itemsep=0pt,partopsep=0pt]
     \item \tbf{增设新顶点}:对于每一条边,如果这条边被两个三角形面包含,则根据这条边的两个端点$\vec{v}_0,\vec{v}_2$和这两个三角形除这条边外各自的顶点$\vec{v}_1,\vec{v}_3$加权平均得到新顶点$\vec{v}^\ast$:
-        \[\vec{v}^\ast=\dfrac{3}{8}\left(\vec{v}_0,\vec{v}_2\right)+\dfrac{1}{8}\left(\vec{v}_1+\vec{v}_3\right)\]
-    如果这条边只被一个三角形面包含,则取边的终点得到新顶点$\vec{v}^\ast$.
+        \[\vec{v}^\ast=\dfrac{3}{8}\left(\vec{v}_0+\vec{v}_2\right)+\dfrac{1}{8}\left(\vec{v}_1+\vec{v}_3\right)\]
+    如果这条边只被一个三角形面包含,则取边的中点得到新顶点$\vec{v}^\ast$.
     \item \tbf{更新原有顶点}:
 \end{enumerate}
 \end{document}
