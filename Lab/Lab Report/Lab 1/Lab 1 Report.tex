@@ -1,5 +1,5 @@
 \documentclass{ctexart}
-\usepackage{VCILabReport}
+\usepackage{Note}
 \title{\textbf{Lab 1 报告}}
 \author{蒋锦豪 2400011785}
 \date{\today}
@@ -8,7 +8,7 @@
 \section*{Task 1: Image Dithering}
 \subsection*{Uniform Random}
 先调用{\codefont random}库生成均匀分布的随机数,然后对每个像素点进行处理,若加上随机数后大于0.5则设为黑色,否则设为白色.代码实现如下:
-\begin{lstlisting}
+\begin{lstlisting}[language=C++]
 void DitheringRandomUniform(
     ImageRGB &       output,
     ImageRGB const & input) {
@@ -31,7 +31,7 @@ void DitheringRandomUniform(
 \end{figure}
 \subsection*{Blue Noise Random}
 将{\codefont input}和{\codefont noise}两张图像的像素值的平均值与$0.5$进行比较,若大于$0.5$则设为黑色,否则设为白色.实际运算时直接将像素值之和与$1$比较即可.代码实现如下:
-\begin{lstlisting}
+\begin{lstlisting}[language=C++]
 void DitheringRandomBlueNoise(
     ImageRGB &       output,
     ImageRGB const & input,
@@ -54,7 +54,7 @@ void DitheringRandomBlueNoise(
 \end{figure}
 \subsection*{Ordered}
 将原图的像素值$i$扩大为$9i$,于是颜色取值范围变为$[0,9]$.将$9i$与$3\times3$的抖动矩阵{\codefont mat}的每个元素进行比较,如果大于该元素的值则将对应位置设为黑色,否则设为白色.代码实现如下:
-\begin{lstlisting}
+\begin{lstlisting}[language=C++]
 void DitheringOrdered(
     ImageRGB &       output,
     ImageRGB const & input) {
@@ -83,7 +83,7 @@ void DitheringOrdered(
 \end{figure}
 \subsection*{Error Diffuse}
 先将{\codefont input}的像素值存入一个二维数组{\codefont colormat}中,然后从左到右,从上到下遍历每个像素点,将{\codefont colormat}存储的像素值与0.5比较后将{\codefont output}对应位置的像素设为黑色或白色,并计算出误差{\codefont delta}.按照Floyd-Steinberg抖动矩阵和误差值{\codefont delta}在{\codefont colormat}中更新右方和下方的像素值;同时需要注意边界处像素的处理.代码实现如下:
-\begin{lstlisting}
+\begin{lstlisting}[language=C++]
 void DitheringErrorDiffuse(
     ImageRGB &       output,
     ImageRGB const & input) {
@@ -126,7 +126,7 @@ void DitheringErrorDiffuse(
     1&1&1
 \end{vmatrix}\]
 对图像进行滤波.具体实现时,遍历每个像素,将该像素及其周围8个像素的值相加后除以9即为滤波后的像素值.对于图像边缘的像素,如果越界则不计入求和和计数.代码实现如下:
-\begin{lstlisting}
+\begin{lstlisting}[language=C++]
 void Blur(
     ImageRGB &       output,
     ImageRGB const & input) {
@@ -167,7 +167,7 @@ void Blur(
     -1&-2&-1
 \end{vmatrix}\]
 对图像进行滤波,然后以结果的均方根作为输出像素值.具体实现时,遍历每个像素,将该像素及其周围8个像素的值与$\mat{K}_x$和$\mat{K}_y$对应位置的值相乘后求和,结果分别记作{\codefont color\_x}和{\codefont color\_y},再对每个颜色通道分别计算它们的平方和开根号,结果即滤波后的像素值.对于图像边缘的像素,与\textbf{Blur}的处理方法相同,如果越界则不计入求和.代码实现如下:
-\begin{lstlisting}
+\begin{lstlisting}[language=C++]
 void Edge(
     ImageRGB &       output,
     ImageRGB const & input) {
@@ -214,7 +214,7 @@ void Edge(
 \[\vec{g}=(\vec{f}+\vec{g})-\vec{f}=\text{{\codefont output}}-\text{{\codefont inputFront}}\]最终要求$\nabla^2\vec{g}=\mbf{0}$.按照Poisson Editing的思路,需要将设置边界处的$\vec{g}$,使得在边界上总有{\codefont output}与背景{\codefont inputBack}相同.于是边界部分的$\vec{g}$应当按
 \[\vec{g}=\text{{\codefont output}}-\text{{\codefont inputFront}}=\text{{\codefont inputBack}}-\text{{\codefont inputFront}}\]
 设置,该部分代码如下:
-\begin{lstlisting}
+\begin{lstlisting}[language=C++]
 // set boundary condition
 for (std::size_t y = 0; y < height; ++y) {
     // set boundary for (0, y), your code: g[y * width] = ?
@@ -236,7 +236,7 @@ for (std::size_t x = 0; x < width; ++x) {
 \end{figure}
 \section*{Task 4: Line Drawing}
 按照Bresenham算法实现直线绘制.具体实现时,先判断直线的斜率是否大于1,若是,则将{\codefont x0}与{\codefont y0}, {\codefont x1}与{\codefont y1}交换,并\textbf{在后续绘制时将横纵坐标互换回来};然后保证$\text{\codefont x0}\leqslant\text{\codefont x1}$,若不满足则交换两端点;接着按照Bresenham算法计算{\codefont dx}和{\codefont dy},以及判断函数{\codefont F}和{\codefont d};最后从{\codefont x0}遍历到{\codefont x1},每次根据决策参数{\codefont F}决定是否需要改变{\codefont y}(对{\codefont y}的增减取决于直线斜率的正负,在确定$\text{\codefont x1}>\text{\codefont x0}$的情况下,如果$\text{\codefont y1}>\text{\codefont y0}$说明斜率为正,每次将{\codefont y}加$1$;否则就每次将{\codefont y}减$1$.),并更新判断函数{\codefont F}.代码实现如下:
-\begin{lstlisting}
+\begin{lstlisting}[language=C++]
     void DrawLine(
     ImageRGB &       canvas,
     glm::vec3 const  color,
