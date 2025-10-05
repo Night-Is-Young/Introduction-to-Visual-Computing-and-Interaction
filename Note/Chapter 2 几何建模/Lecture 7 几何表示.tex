@@ -33,7 +33,7 @@
     $\mathcal{M}$描述的几何形状满足:对于任意面$\vec{f}_k$,其上所有点都在$\p M$上,即
     \[\forall\left(x_k,y_k,z_k\right)\in\vec{f}_k,\ \ S_M\left(x_k,y_k,z_k\right)=0\]
 \end{definition}
-一般而言,我们要求网格是\tbf{流形}的,即每条边总是且仅被两个面共享.
+一般而言,我们要求网格是\tbf{流形}的,即每条边最多被两个面共享.
 \subsection{网格表示}
 网格模型是计算机图形学中最常用的几何表示方法,我们已经在上一节介绍过其定义.在计算机中存储时,通常使用顶点列表,边列表和面列表作为储存多边形网格的数据结构;有时也会设计额外的数据结构方便邻边查找等操作.
 \subsubsection{三角网格表示法}
@@ -49,21 +49,43 @@
 特别地,为了方便处理,我们在存储顶点索引时可以按照逆时针方向存储.这可以保证每个三角形的法向方向一致,从而方便后续的渲染等操作.
 \subsubsection{半边数据结构}
 在网格中,我们经常会面对顶点邻接关系的查询,也需要有序地遍历顶点和面.在一般的索引三角形网格中,我们只能通过遍历所有三角形来找到某个顶点的邻接顶点,这显然效率很低.\tbf{半边数据结构(Half-Edge Data Structure)}就是一种更高效的网格表示方法.\\
-\indent 我们考虑的几何形状几乎都是流形,因此每条边总是被两个面共用.我们可以把每条边拆成两个方向相反的\tbf{半边(half-edge)},每个半边只属于一个面.对于每个半边,我们记录其起点,终点,所属面,上一个和下一个半边,以及与其配对的另一个半边.这样,我们就可以通过半边快速地找到顶点的邻接顶点和邻接面.
+\indent 由于我们主要考虑流形,因此可以把每条边拆成两个方向相反的\tbf{半边(half-edge)},每个半边只属于一个面,而每个面可以由首尾相接的数个半边表示.对于每个半边,我们记录其起点,终点,所属面,上一个和下一个半边,以及与其配对的另一个半边.这样,我们就可以通过半边快速地找到顶点的邻接顶点和邻接面.
 \begin{definition}[半边数据结构]
-    \tbf{半边数据结构(Half-Edge Data Structure)}相比一般的网格数据结构增加了对每个边的半边表示.每个半边$\vec{e}$包含以下信息:
+    \tbf{半边数据结构(Half-Edge Data Structure)}相比一般的网格数据结构增加了对每个边的半边表示.每个半边\code{e}主要包含以下信息:
     \begin{itemize}[topsep=0pt,parsep=0pt,itemsep=0pt,partopsep=0pt]
-        \item $\vec{e}.\text{from}$: 半边的起点;
-        \item $\vec{e}.\text{twin}$: 与该半边配对的另一个半边;
-        \item $\vec{e}.\text{face}$: 该半边所属的面;
-        \item $\vec{e}.\text{next}$: 该半边在所属面中的下一个半边;
-        \item $\vec{e}.\text{prev}$: 该半边在所属面中的上一个半边.
-        \item $\vec{e}.\text{to}$: 半边的终点,等于$\vec{e}.\text{twin}.\text{from}$.
+        \item \code{e->From()}: 半边的起点;
+        \item \code{e->Twin()}: 与该半边配对的另一个半边;
+        \item \code{e->Face()}: 该半边所属的面;
+        \item \code{e->Next()}: 该半边在所属面中的下一个半边;
+        \item \code{e->Prev}: 该半边在所属面中的上一个半边.
+        \item \code{e->To()}: 半边的终点,等于\code{e->Twin()->From()}.
     \end{itemize}
+    实现半边数据结构主要通过\tbf{双向边链表(DCEL, Doubly Connected Edge List)}来完成. DECL中不仅新增了半边的信息,其面和顶点也储存了与相关半边的信息,从而构成了一张结构完善的图.
 \end{definition}
-使用半边数据结构能完成对网格的许多拓扑操作
+使用半边数据结构能完成涉及网格拓扑结构的各种操作,例如.下面给出两个简单的例子.
+\paragraph{遍历面的顶点/边}
+给定面\code{f},可以通过\code{f->Edge()}\footnote{在Lab中可以直接通过\code{f->Edge(i)}访问顶点\code{i}的对边,但这里采用更加本质的办法,即通过类似环状链表的形式遍历.}得到该面上的一个半边\code{e}.然后不断访问\code{e->Next()},直到回到起点,就可以遍历该面上的所有顶点和边.
+\begin{lstlisting}[language=C++]
+DCEL::HalfEdge const * e = f->Edge();
+DCEL::HalfEdge const * e_start = f->Edge();
+do {
+    DCEL::VertexProxy const * v = e->From(); // 访问顶点
+    e = e->Next(); // 访问下一条边
+} while (e != e_start);
+\end{lstlisting}
+\paragraph{围绕顶点进行遍历}
+前面我们给出了围绕面构造迭代器的办法.另一个常用的迭代器是顶点迭代器,即围绕某个顶点访问其所有邻接顶点\footnote{在Lab中,可以通过\code{v->Ring()}直接访问所有相邻的面中与\code{v}不相交的,相对的半边.对于非边界上的\code{v},这些半边组成了一个环.}.给定顶点\code{v},可以通过\code{v->Edge()}得到一条以\code{v}为起点的半边\code{e}.然后不断访问\code{e->Twin()->Next()},直到回到起点,就可以遍历该顶点的所有邻接顶点.
+\begin{lstlisting}[language=C++]
+DCEL::HalfEdge const * e = v->Edge();
+DCEL::HalfEdge const * e_start = v->Edge();
+do {
+    DCEL::VertexProxy const * u = e->To(); // 访问邻接顶点
+    e = e->Twin()->Next(); // 访问下一条邻接顶点的边
+} while (e != e_start);
+\end{lstlisting}
+总之,半边数据结构通过增加对边的表示,使得网格的拓扑关系更加清晰,从而方便了各种基于网格的计算和处理.
 \subsection{网格细分}
-不难看出,通过增加组成几何表面的网格面片数量,减小每个面片的面积,可以使几何表面看起来更加光滑.
+通过增加组成几何表面的网格面片数量,减小每个面片的面积,可以使几何表面看起来更加光滑.
 \begin{definition}[网格细分]
     \tbf{网格细分(Mesh Subdivision)},又称作网格的\tbf{上采样},是指通过反复细分初始的多边形网格,不断得到更精细的网格的过程.
 \end{definition}
@@ -75,7 +97,7 @@ Catmull-Clark细分是最常用的几何表面细分方法之一,主要应用于
     \item \tbf{增设边点}:对多面体的每条边计算一个边点,该边点是该边两个端点$\vec{v}_1$和$\vec{v}_2$,以及相邻两个面片的面点$\vec{v}_{\text{face},1}$和$\vec{v}_{\text{face},2}$的平均值:
         \[\vec{v}_{\text{edge}}=\dfrac{1}{4}\left(\vec{v}_1+\vec{v}_2+\vec{v}_{\text{face},1}+\vec{v}_{\text{face},2}\right)\]
     \item \tbf{更新顶点}:对多面体原有的每个顶点$\vec{v}$,使用下面的加权平均算法更新其位置:
-        \[\vec{v}_{\text{vertex}}=\dfrac{F+2R+(N-3)\vec{v}}{N}\]
+        \[\vec{v}_{\text{vertex}}=\dfrac{\vec{F}+2\vec{R}+(N-3)\vec{v}}{N}\]
         其中$\vec{F}$是所有以$\vec{v}$为顶点的面片的面点的均值, $\vec{R}$是所有以$\vec{v}$为端点的边的中点(注意不是\tbf{2.}中的边点)的均值, $N$是与该顶点相邻的顶点数.
     \item \tbf{重新连接}:将每个面点$\vec{v}_{\text{face}}$与该面片所有边对应的的边点$\vec{v}_{\text{edge}}$相连;将每个新顶点$\vec{v}_{\text{vertex}}$与原有顶点所有相邻边的边点$\vec{v}_{\text{edge}}$相连.于是就形成新的细分过后的面片.
 \end{enumerate}
@@ -85,6 +107,46 @@ Loop细分是另一种常用的几何表面细分方法,主要应用于三角形
     \item \tbf{增设新顶点}:对于每一条边,如果这条边被两个三角形面包含,则根据这条边的两个端点$\vec{v}_0,\vec{v}_2$和这两个三角形除这条边外各自的顶点$\vec{v}_1,\vec{v}_3$加权平均得到新顶点$\vec{v}^\ast$:
         \[\vec{v}^\ast=\dfrac{3}{8}\left(\vec{v}_0+\vec{v}_2\right)+\dfrac{1}{8}\left(\vec{v}_1+\vec{v}_3\right)\]
     如果这条边只被一个三角形面包含,则取边的中点得到新顶点$\vec{v}^\ast$.
-    \item \tbf{更新原有顶点}:
+    \item \tbf{更新原有顶点}:对于每个原有的顶点$\vec{v}$,按照下面的公式更新其位置至$\vec{v}'$:
+        \[\vec{v}'=(1-nu)\vec{v}+\sum_{i=1}^{n}u\vec{v}_i\]
+        其中$n$为$\vec{v}$邻接顶点的数目,$\vec{v}_i$是与$\vec{v}$相邻的顶点.当$n=3$时,$u=\dfrac{3}{16}$;当$n>3$时,$u=\dfrac{3}{8n}$.
+    \item \tbf{重新连接}:将每个原有三角形的三个边的构造出的新点与原有顶点更新后的位置相连,形成四个新的三角形.
+\end{enumerate}
+\subsection{网格参数化}
+\subsubsection{网格参数化概述}
+网格参数化起源于纹理映射的需要.在为三维图形着色时(类似地,将三维图形展平至二维,例如绘制世界地图等情形时),我们需要建立三维图形表面与二维纹理图像之间的映射关系,即建立三维图形上的点$\vec{v}_i\left(x_i,y_i,z_i\right)$到二维平面上的点$\vec{u}_i\left(u_i,v_i\right)$的映射(这与UV坐标的思想类似).
+\begin{definition}[网格参数化]
+    \tbf{网格参数化(Mesh Parameterization)}是指将三维空间中的网格映射到二维平面上的过程.具体地,对于三维空间中的网格$\mathcal{M}=$,我们希望找到一个映射$f:\R^3\to\R^2$,使得每个顶点$\vec{v}_i\in\mathcal{V}$都对应一个二维平面上的点$\vec{u}_i=f(\vec{v}_i)\in\R^2$.
+\end{definition}
+\indent 按照参数化中保持的几何量,可以将网格参数化分为保长度(Isometric)的参数化,保角(Conformal)的参数化和保面积(Areal)的参数化等.保长度的参数化等价于既保角度又保面积的参数化.理想的参数化可以保持形状不发生变化,但只有可展曲面(例如圆柱面)可以进行保形参数化,而大部分曲面在参数化时都会发生一定形变.\\
+\indent 一般而言,我们参数化的对象是具有边界的开网格.对于封闭的图形,通常先指定一条边将其裁切为开网格,然后进行参数化.\\
+\indent 对开网格的参数化主要分为\tbf{固定边界映射}和\tbf{自由边界映射}两类.固定边界映射是指将边界顶点映射到二维平面的一个预设形状(例如圆形或正方形)上,然后计算内部顶点映射到的坐标.自由边界映射则不对边界顶点进行预设,而是同时优化确定边界和内部顶点的二维坐标.
+\subsubsection{基于弹簧模型的网格参数化/重心映射}
+\indent 在开网格参数化中,最基础的模型为\tbf{弹簧模型}.我们将网格顶点作为节点,网格的边作为连接节点的弹簧.参数化后的系统状态,可以由各个弹簧的弹性势能之和衡量,最终的平衡状态(系统总弹性势能最小的状态)即为参数化的结果.\\
+\indent 考虑网格$\mathcal{M}$的顶点$\vec{v}_1,\cdots,\vec{v}_n$,各顶点参数化后的二维坐标为$\vec{t}_1,\cdots,\vec{t}_n$.系统的总能量(求和时每条边的能量都被计算两遍,因此前面还需乘以$1/2$)可以描述为
+\[E=\dfrac12\sum_{i=1}^{n}\sum_{j\in\Omega(i)}\dfrac12D_{ij}\left|\left|\vec{t}_i-\vec{t}_j\right|\right|^2\]
+其中$\Omega(i)$表示与顶点$i$相邻的顶点集合, $D_{ij}$是连接顶点$i$和$j$的弹簧的弹性系数.系统能量最小时,对各$\vec{t}_i$的偏导均为$\mbf{0}$,即
+\[\dfrac{\p E}{\p\vec{t}_i}=\sum_{j\in\Omega(i)}D_{ij}\left(\vec{t}_i-\vec{t}_j\right)=\mbf{0}\]
+记组合系数
+\[\lambda_{ij}=\dfrac{D_{ij}}{\displaystyle\sum_{k\in\Omega(i)}D_{ik}}\]
+于是上式可以整理为
+\[\vec{t}_i-\sum_{j\in\Omega(i)}\lambda_{ij}\vec{t}_j=\mbf{0}\]
+可以看出,$\vec{t}_i$由其周围的点按照一定系数加权得到,因此这一方法又称作\tbf{重心映射}.这是一个有$2n$个变量和$2n$个方程的齐次线性方程组,其平凡解为零解.为了得到非零解,一种简单的办法是将开网格边界上的点根据它们之间的距离映射到指定的凸图形的边界(常见的有正方形,圆形)上,然后将内部的点作为未知量按照上面的方程组求解.\\
+\indent 另外,可以设置合适的系数$\lambda_{ij}$引导参数化.系数的设置需满足
+\begin{enumerate}[topsep=0pt,parsep=0pt,itemsep=0pt,partopsep=0pt]
+    \item \tbf{凸组合性}:对凸多边形的加权平均仍然在凸多边形内部,即
+        \[\lambda_{ij}\geqslant0,\quad \sum_{j\in\Omega(i)}\lambda_{ij}=1\]
+    \item \tbf{线性重构性}:如果顶点$\vec{v}_i$和其邻接顶点$\vec{v}_j$在三维空间中共线,则参数化后的点$\vec{t}_i$和$\vec{t}_j$也应当共线;亦即平面网格映射后保持不变.即
+        \[\sum_{j\in\Omega(i)}\lambda_{ij}\left(\vec{v}_i-\vec{v}_j\right)=\mbf{0}\]
+\end{enumerate}
+基于此和一些几何上的考虑,常见的组合系数有下面几种:
+\begin{enumerate}[topsep=0pt,parsep=0pt,itemsep=0pt,partopsep=0pt]
+    \item \tbf{平均系数}:每个邻接顶点的权重相等, 即
+        \[\lambda_{ij}=\dfrac{1}{|\Omega(i)|}\]
+    \item \tbf{均值坐标系数(Floater权重)}:基于顶点$\vec{v}_i$和其邻接顶点$\vec{v}_j$与$\vec{v}_i$的连线与其邻接边的夹角$\alpha_{j1}$和$\alpha_{j2}$,定义权重为
+        \[\lambda_{ij}=\dfrac{\tan\left(\alpha_{j1}/2\right)+\tan\left(\alpha_{j2}/2\right)}{||\vec{v}_i-\vec{v}_j||}\]
+    \item \tbf{调和坐标系数(余切Laplacian权重)}:基于顶点$\vec{v}_i$和其邻接顶点$\vec{v}_j$与$\vec{v}_i$的连线相对的夹角$\beta_{j1}$和$\beta_{j2}$,定义权重为
+        \[\lambda_{ij}=\dfrac{\cot\beta_{j1}+\cot\beta_{j2}}{2}\]
+        调和坐标系数更接近保角映射,但也可能出现权重为负值的情况,从而导致映射出现折叠.
 \end{enumerate}
 \end{document}
