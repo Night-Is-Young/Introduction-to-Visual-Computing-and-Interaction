@@ -175,7 +175,7 @@
     \]
     对图像$\mat{I}$进行卷积后,可以得到Laplacian响应:
     \[L = \mat{I} * \mat{K}_{\text{Lap}}\]
-    Laplacian算子对噪声较为敏感,因此通常在使用前会先对图像进行高斯模糊处理,这种方法称为LoG(Laplacian of Gaussian).
+    Laplacian算子对噪声较敏感,因此通常在使用前先对图像进行高斯模糊处理,这种方法称为LoG(Laplacian of Gaussian).
 \end{definition}
 \subsection{图像补全与融合}
 在图像补全时,我们需要对图像缺失的部分进行补充,并且使得结果看起来更为自然,即满足下面两个条件:
@@ -185,7 +185,7 @@
 \end{enumerate}
 \indent 在数学上,我们可以用以下的办法描述问题:考虑图像$I$的待补全区域$\Omega$以及其边界$\partial \Omega$.定义$f(x,y)$为$\Omega\cup\p\Omega$上的函数表示待填补的颜色, $f^\ast(x,y)$为$\complement_I\Omega$上的函数表示已知的颜色.于是优化目标为
 \[\min_f\iint_{\Omega}\left|\left|\nabla f\right|\right|^2\di S,\ \ \text{s.t.}\ \ f|_{\p\Omega}=f^\ast|_{\p\Omega}\]
-在图像融合时,我们希望补全区域的颜色梯度与源图像的颜色梯度尽可能接近.定义$g(x,y)$为$I$上的函数表示原图像的颜色,那么优化问题为
+在图像融合时,我们希望补全区域的颜色梯度与源图像的颜色梯度尽可能接近.定义$g(x,y)$为$\Omega$上的函数表示前景图的颜色,那么优化问题为
 \[\min_f\iint_{\Omega}\left|\left|\nabla f-\nabla g\right|\right|^2\di S,\ \ \text{s.t.}\ \ f|_{\p\Omega}=f^\ast|_{\p\Omega}\]
 由于图像补全是图像融合的特殊情形($\nabla g=0$),因此考虑后面的问题即可.根据Euler-Lagrange方程,上述优化问题的解满足
 \[\nabla^2f=\nabla^2g,\ \ \text{s.t.}\ \ f|_{\p\Omega}=f^\ast|_{\p\Omega}\]
@@ -194,7 +194,29 @@
 \[\dfrac{\p^2f}{\p y^2}(x,y)=[f(x,y+1)-f(x,y)]-[f(x,y)-f(x,y-1)]\]
 于是
 \[\nabla^2 f(x,y)=f(x+1,y)+f(x-1,y)+f(x,y+1)+f(x,y-1)-4f(x,y)\]
-按照一定的方式排列所有$(x,y)\in\Omega$即可得到一个线性方程组.求解这个线性方程组即可得到每一点的像素值.各种数值方法,例如Jacobi迭代法, Gauss-Seidel迭代法,共轭梯度法等都可以用来求解这个线性方程组.
+按照一定的方式排列所有$(x,y)\in\Omega$即可得到一个线性方程组.例如,对一个$3\times3$的待求解区域$\Omega$和其上待求解的像素值$f_{11},\cdots,f_{33}$,可以写出线性方程组:
+\[\begin{bmatrix}
+    4&-1&0&-1&0&0&0&0&0\\
+    -1&4&-1&0&-1&0&0&0&0\\
+    0&-1&4&0&0&-1&0&0&0\\
+    -1&0&0&4&-1&0&-1&0&0\\
+    0&-1&0&-1&4&-1&0&-1&0\\
+    0&0&-1&0&-1&4&0&0&-1\\
+    0&0&0&-1&0&0&4&-1&0\\
+    0&0&0&0&-1&0&-1&4&-1\\
+    0&0&0&0&0&-1&0&-1&4
+\end{bmatrix}\begin{bmatrix}
+    f_{11}\\f_{12}\\f_{13}\\f_{21}\\f_{22}\\f_{23}\\f_{31}\\f_{32}\\f_{33}
+\end{bmatrix}=\begin{bmatrix}
+    b_{11}\\b_{12}\\b_{13}\\b_{21}\\b_{22}\\b_{23}\\b_{31}\\b_{32}\\b_{33}
+\end{bmatrix}\]
+记上述方程为
+\[\mat{L}_{\Delta}\vec{f}=\vec{b}\]
+其中$\mat{L}_{\Delta}$是Laplacian矩阵\footnote{Laplacian矩阵可以被用于描述图的邻接关系,它的$(i,i)$元表示第$i$个顶点的邻接顶点数目,$(i,j)$元表示顶点$i$与顶点$j$是否相接及相接边的权重$w$,如果相接则为$w_{ij}$,否则为$0$.可以看出Laplacian矩阵和Laplacian微分算子具有密切的联系.}.$\vec{b}$是根据边界和$\nabla^2 g$设定的向量.这一求解这个线性方程组即可得到每一点的像素值.各种数值方法,例如Jacobi迭代法, Gauss-Seidel迭代法,共轭梯度法等都可以用来求解这个线性方程组.\\
+\indent 对于形如$\mat{A}\vec{x}=\vec{b}$的线性方程组, Jacobi迭代法的迭代格式为
+\[x_i^{(k+1)}=\dfrac{1}{a_{ii}}\left(b_i-\sum_{1\leqslant j\leqslant n,j\neq i}a_{ij}x_j^{(k)}\right)\]
+可以看到每次迭代时都仅依赖上一次的结果.如果我们及时更新迭代的结果,就是Gauss-Seidel迭代法,其迭代格式为
+\[x_i^{(k+1)}=\dfrac{1}{a_{ii}}\left(b_i-\sum_{1\leqslant j<i}a_{ij}x_j^{(k+1)}-\sum_{i<j\leqslant n}a_{ij}x_j^{(k)}\right)\]
 \subsection{图像分割}
 大多数图片都有前景与背景,但图像只有每个像素点的信息.为了从颜色信息还原出前景与背景信息,我们需要图像分割(即俗称的抠图).\\
 \indent 令$\mat{C}$表示输入的图像,$\mat{F}$表示前景图,$\mat{B}$表示背景图(假定它们都是RGB图像),$\alpha$表示前景的透明度,则有
@@ -255,5 +277,58 @@
     1 & 0 & 3 \\
     5 & 2 & 7
 \end{bmatrix}\]
-假定像素的灰度值取值范围为$(0,1)$.我们可以把这一区间划分为$10$个区域,
+假定像素的灰度值$g_i$取值范围为$(0,1)$.我们可以把这一区间划分为$9$个区域,即将灰度值乘以$9$.如果$9g_i>\mat{M}_{jk}$,就把新图像中对应于原图像素$i$的$3\times3$区域中的$(j,k)$像素点设为黑色,否则设为白色.这样,就可以得到一张二值图像.
+\begin{figure}[H]
+    \centering\subfigure[源图像]{
+        \includegraphics[scale=0.6]{figure/Origin.png}
+    }\quad\quad
+    \subfigure[经过有序抖动处理后的图像]{
+        \includegraphics[scale=0.2]{figure/Ordered.png}
+    }
+    \caption{有序抖动的效果演示}
+\end{figure}
+有序抖动实际上是给图像添加了周期性的噪声后二值化的结果.例如,考虑抖动矩阵的元素$\mat{M}_{00}$,当$9g_{i}\geqslant6$,即$g_i-0.167\geqslant0.5$时,对应的像素点被设为黑色,也就是给该像素加上$-0.167$的噪声后进行二值化.我们将在下一节解释为何加上噪声后进行二值化可以得到更好的效果.
+\subsubsection{基于噪声的抖动}
+基于前面的思想,我们可以把图像加上随机生成的噪声后进行二值化.
+\paragraph{噪声的作用}
+我们假定原图第$i$个像素的灰度值为$f_i$,二值化后图像的第$i$个像素的灰度值为$g_i$.定义量化后图像与原图的平均误差$E$如下:
+\[E=\dfrac{1}{N}\sum_{i=0}^{N-1}\left(f_i-g_i\right)\]
+其中$N$为像素总数.我们希望$E$尽可能小.为此,考虑一种最简单的情形,令$f_i=0.25$.于是直接二值化的误差为
+\[E=\dfrac{1}{N}\sum_{i=0}^{N-1}\left(\dfrac14-0\right)=\dfrac14\]
+现在给每个像素加上均匀分布在$[-0.5,0.5]$的噪声$\ep_i$,然后再二值化.于是
+\[E_{\text{noise}}=\dfrac{1}{N}\sum_{i=0}^{N-1}\left(\dfrac14-I_{0.25+\ep_i>0.5}\right)\]
+其中$I_A$为事件$A$的示性函数,当$A$发生时取$1$,否则取$0$.由于$\ep_i$是一个随机变量,因此我们分析$E_{\text{noise}}$的数学期望:
+\[\mathbb{E}\left(E_{\text{noise}}\right)
+= \dfrac14-\dfrac{1}{N}\sum_{i=0}^{N}\mathbb{E}\left(I_{0.25+\ep_i>0.5}\right)
+= \dfrac14-\dfrac{1}{N}\sum_{i=0}^{N}P\left(\ep_i>0.25\right)
+= \dfrac14-\dfrac14=0\]
+可以发现,在平均意义下加上噪声后二值化的误差变得更小.
+\paragraph{白噪声与蓝噪声}
+上述加噪声的办法(即给原像素加上均布于$[-0.5,0.5]$的噪声)称作\tbf{白噪声}.相比于直接二值化,白噪声抖动中的色带线性大大减轻,但仍然会出现明显的噪点.\\
+\indent 改变噪声生成的方式,可以得到更好的效果.另一种常用的噪声是\tbf{蓝噪声}.典型的蓝噪声生成方式是在图像上随机生成一系列两两距离不小于某一值$r$的点,然后将该图像作为噪声的采样点进行二值化.
+\begin{figure}[H]
+    \centering\subfigure[源图像]{
+        \includegraphics[scale=0.6]{figure/Origin.png}
+    }\quad\quad
+    \subfigure[经过白噪声处理后的图像]{
+        \includegraphics[scale=0.6]{figure/UniformRandom.png}
+    }\quad\quad
+    \subfigure[经过蓝噪声处理后的图像]{
+        \includegraphics[scale=0.6]{figure/BlueNoise.png}
+    }
+    \caption{噪声抖动的效果演示}
+\end{figure}
+从频谱上看,白噪声的频谱是均匀分布的,而蓝噪声的频谱在低频部分较弱,在高频部分较强.由于人眼更难注意到高频信号,因此蓝噪声抖动后的图像看起来更为自然.
+\subsubsection{基于误差扩散的抖动}
+另一种抖动方法是\tbf{Floyd-Steinberg抖动算法}.它的基本思想是,在二值化某一像素后,计算该像素的量化误差,然后将该误差按一定权重分配给该像素周围尚未处理的像素.具体而言,我们从上到下,从左到右地处理图像的每一个像素.对于当前像素$i$,我们先将其灰度值$f_i$加上之前分配给它的误差$\ep_i$后进行二值化,得到二值化后的灰度值$g_i$.计算量化误差$\delta_i=f_i+\ep_i-g_i$,然后将$\delta_i$分为$7/16,5/16,3/16,1/16$四部分,分别加到它右边,左下,下方和右下的四个像素上.依次处理所有像素即可得到结果.
+\begin{figure}[H]
+    \centering\subfigure[源图像]{
+        \includegraphics[scale=0.6]{figure/Origin.png}
+    }\quad\quad
+    \subfigure[误差扩散抖动处理后的图像]{
+        \includegraphics[scale=0.6]{figure/ErrorDiffuse.png}
+    }
+    \caption{误差扩散抖动的效果演示}
+\end{figure}
+这是一个确定性的算法,它的效果与噪声抖动相似,但不会出现明显的噪点或规则性斑点.然而,由于它需要逐像素处理并不断扩散误差,其计算速度相对更慢.
 \end{document}
