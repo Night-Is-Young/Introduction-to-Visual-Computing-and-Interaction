@@ -1,5 +1,72 @@
 \documentclass{ctexart}
 \usepackage{Note}
 \begin{document}
-\sec
+\section{颜色}
+\subsection{颜色的物理与感知}
+\subsubsection{颜色的物理本质}
+\begin{definition}[颜色]
+    \tbf{颜色(Color)}是特定波长的光引起的视觉效应.
+\end{definition}
+\begin{definition}[可见光]
+    可以被人眼感知的电磁波称为\tbf{可见光(Visible Light)}.其波长范围大约在$380\text{nm}$到$750\text{nm}$之间.
+\end{definition}
+单一波长的光称为\tbf{单色光(Monochromatic Light)},在自然界中比较少见.而大多数自然界的光是由多种波长的光混合而成的,称为\tbf{复色光(Polychromatic Light)}\footnote{自然界中的白光,例如太阳光等,包含了可见光的所有频段的电磁波.它的光谱几乎是连续的(除了某些特定的,由特定元素造成的吸收峰).}.\\
+\indent 复色光的形成有两种方式.一种是发射光以加法形式组合,例如红,绿,蓝三种色光混合形成白光;另一种是吸收光以减法形式组合,例如青,品红,黄三种颜色的颜料混合形成黑色.\\
+\indent 在计算机图形学中,我们主要研究的是显示器等发射光的设备,因此主要使用加法颜色模型来表示颜色.在数学上,可以用$I(\lambda)$表示复色光中各波长$\lambda$的光强.
+\subsubsection{颜色的感知}
+人眼对光的感知是通过视网膜上的视锥细胞和视杆细胞实现的.
+\begin{theorem}[视杆细胞的作用与分布]
+    \tbf{视杆细胞(Rod Cells)}对光强的敏感度高,但不区分颜色.视杆细胞在视网膜上分散地分布.
+\end{theorem}
+\begin{theorem}[视锥细胞的作用与分布]
+    \tbf{视锥细胞(Cone Cells)}对光的波长敏感.视锥细胞主要集中在视网膜的中央区域.
+\end{theorem}
+\begin{theorem}[视锥细胞的分类]
+    视锥细胞按其对不同波长光的敏感性可分为三类:
+    \begin{enumerate}[label=\tbf{\arabic*.},topsep=0pt,parsep=0pt,itemsep=0pt,partopsep=0pt]
+        \item S视锥细胞:对短波长(蓝色光)敏感,峰值约在$420\ \text{nm}$.
+        \item M视锥细胞:对中波长(绿色光)敏感,峰值约在$534\ \text{nm}$.
+        \item L视锥细胞:对长波长(黄色光)敏感,峰值约在$564\ \text{nm}$.
+    \end{enumerate}
+\end{theorem}
+尽管视锥细胞所敏感的颜色是蓝,绿,黄三色,但由于黄色和绿色过于接近,在图形学中通常使用红,绿,蓝三色表示各种颜色.
+\begin{theorem}[色彩立体效应]
+    光线通过角膜时会发生轻微的衍射.眼睛通常能够将黄色波长的光($598\text{ nm}$)调到最清晰的焦点,从而使得波长较长的红色光波会聚在视网膜后面,波长较短的绿色和蓝色光波会聚在视网膜前面.这就使得人会认为较长波长的光来自更近的地方,较短波长的光来自更远的地方.这种现象称为\tbf{色彩立体效应(Color Stereoscopic Effect)}.
+\end{theorem}
+\begin{theorem}[颜色恒常特性]
+    人的视觉具有\tbf{颜色恒常特性(Color Constancy)},即在不同光照条件下,人们对物体颜色的感知基本保持不变.例如,在白天和黄昏时分,我们仍然认为一件物体的颜色是相同的,尽管其反射光谱可能有显著变化.
+\end{theorem}
+颜色恒常特性的一个典型的例子就是棋盘阴影错觉.与颜色恒常特性的另一个密切相关的视觉效应是色诱导效应.
+\begin{theorem}[色诱导]
+    由于颜色恒常特性的存在,人们在感知颜色时通常会扣除环境光的影响(即倾向于将看到物体的颜色向环境光的补色靠拢).这就导致了\tbf{色诱导(Color Induction)}现象.
+\end{theorem}
+\begin{theorem}[边界效应]
+    物体边界的颜色也会影响人们对物体颜色的感知,这称为\tbf{边界效应(Edge Effect)}.例如,具有深色边界的物体会被感知为更暗的颜色,而具有浅色边界的物体会被感知为更亮的颜色.
+\end{theorem}
+\begin{theorem}[色彩和视觉敏锐度]
+    人对于物体清晰度的感知主要取决于物体的亮度变化,而不是颜色变化.\\
+    另外,人对于蓝色目标的空间敏锐度的感知要比其它颜色差得多,这意味着蓝色的物体看起来更容易模糊.
+\end{theorem}
+\subsection{颜色的离散表示}
+\subsubsection{色彩空间}
+任意一种人眼可以分辨的颜色都可以用$(r,g,b)$三原色坐标表示,并且它大致是线性的,即颜色的混合可以表示为颜色坐标的加和.这样,任何一种颜色就对应于$[0,1]\times[0,1]\times[0,1]$这一立方体空间中的一个坐标.此外,我们还需要规定顶点处的基准颜色.上面的所有规定构成了一个\tbf{色彩空间(Color Space)}.
+\begin{definition}[色彩空间]
+    \tbf{色彩空间}是一种用于定量描述颜色的数学模型,它为颜色建立了一个坐标系统并规定了基准的颜色,从而使得颜色可以被精确地表示.
+\end{definition}
+常见的色彩空间有RGB, CMY(K), HSV, HSL等.
+\begin{definition}[RGB色彩空间]
+    \tbf{RGB颜色空间}使用红(Red),绿(Green),蓝(Blue)三种颜色作为基准颜色,通过调整这三种颜色的强度来表示各种颜色.在计算机图形学中,RGB颜色空间是最常用的色彩空间.
+\end{definition}
+\begin{definition}[HSV与HSL色彩空间]
+    \tbf{HSV颜色空间}(Hue, Saturation, Value)和\tbf{HSL颜色空间}(Hue, Saturation, Lightness)是基于人类对颜色感知的色彩空间.它们通过色调(Hue),饱和度(Saturation),亮度(Lightness)或明度(Value)来表示颜色,更符合人类的直观感受.
+\end{definition}
+上面两种色彩空间都采用柱坐标的方式表示颜色.
+\begin{definition}[CMYK色彩空间]
+    \tbf{CMYK颜色空间}(Cyan, Magenta, Yellow, Key/Black)主要用于印刷领域.它使用青(Cyan),品红(Magenta),黄(Yellow)三种颜色作为基准颜色,通过减法混合来表示各种颜色.黑色(Key/Black)通道用于增强图像的对比度和深度.
+\end{definition}
+\subsubsection{色域}
+由于显示设备的不同,其能够显示的颜色范围也不同.我们可以用色域来描述显示设备能显示的颜色范围.
+\begin{definition}[色域]
+    \tbf{色域(Gamut)}是指显示设备能够显示的颜色范围.不同的显示设备有不同的色域,例如sRGB色域,Adobe RGB色域等.
+\end{definition}
 \end{document}
