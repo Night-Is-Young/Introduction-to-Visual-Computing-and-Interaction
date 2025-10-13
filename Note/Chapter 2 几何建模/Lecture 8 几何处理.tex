@@ -54,11 +54,73 @@
     \[\Delta f\left(\vec{x}_i\right)=\sum_{\vec{x}_j\in\Omega(\vec{x}_i)}w_{ij}\left(f\left(\vec{x}_j\right)-f\left(\vec{x}_i\right)\right)\]
     其中$\Omega(\vec{x}_i)$是与顶点$\vec{x}_i$邻接的顶点集合, $w_{ij}$是权重.
 \end{definition}
-我们现在来证明这一定义的合理性.
+\begin{definition}[均匀拉普拉斯算子]
+    \tbf{均匀拉普拉斯算子(Uniform Laplace Operator)}的权重定义为:
+    \[w_{ij}=\dfrac{1}{\left|\Omega(\vec{x}_i)\right|}\]
+    其中$\left|\Omega(\vec{x}_i)\right|$是邻接顶点的个数.
+\end{definition}
+\begin{definition}[余切拉普拉斯算子]
+    \tbf{余切拉普拉斯算子(Cotangent Laplace Operator)}的权重定义为:
+    \[w_{ij}=\dfrac{1}{2}\left(\cot\alpha_{ij}+\cot\beta_{ij}\right)\]
+    其中$\alpha_{ij}$和$\beta_{ij}$是与边$(\vec{x}_i,\vec{x}_j)$相邻的两个三角形中该边所对的角.
+\end{definition}
+我们现在来证明上述定义(尤其是余切Laplacian)的合理性.
 \begin{proof}
-    对于$\vec{x}_i$的一个邻域$\Omega(\vec{x}_i)$,根据散度定理有
-    \[\iint_{\Omega(\vec{x}_i)}\Delta f\di S=\int_{\p\Omega(\vec{x}_i)}\nabla f\cdot\vec{n}\di s\]
-    其中$\vec{n}$表示给定点处的法向量.在梯度一节中我们已经证明$\nabla f$在给定三角形上是定值,因此我们对$\vec{x}_i$邻接的各个三角形$T_j$单独考虑,设$T_j$的顶点为$\vec{x}_i,\vec{x}_{j1},\vec{x}_{j2}$.
+    我们首先推导散度定理在二维情形下(即格林公式)的向量表述\footnote{这在高等数学习题中亦有相应的习题,此处再推导一遍.}.对于一个在区域$\Omega$上定义的向量场$\vec{v}(x,y)=\left(P(x,y),Q(x,y)\right)$,设$\vec{n}(x,y)=(a,b)$为$\p\Omega$上$(x,y)$处的单位外法向量,此处的单位切向量$\vec{t}(x,y)=(\cos\alpha,\cos\beta)$.于是有
+    \[\vec{k}=\vec{n}\times\vec{t}=\begin{vmatrix}
+        \vec{i}&\vec{j}&\vec{k}\\
+        a&b&0\\
+        \cos\alpha&\cos\beta&0
+    \end{vmatrix}=\left(a\cos\beta-b\cos\alpha\right)\vec{k}\]
+    其中$\vec{i},\vec{j},\vec{k}$分别为$x,y,z$轴的单位向量.解上述方程从而表明$\vec{n}=(\cos\beta,-\cos\alpha)$.于是就有
+    \[\begin{aligned}
+        \oint_{(\p\Omega)^+}\vec{v}\cdot\vec{n}\di s
+        &= \oint_{(\p\Omega)^+}(P\cos\beta-Q\cos\alpha)\di s=\oint_{(\p\Omega)^+}(P\di y-Q\di x) \\
+        &\xlongequal{\text{格林公式}}\iint_{\Omega}\left(\dfrac{\p P}{\p x}+\dfrac{\p Q}{\p y}\right)\di S=\iint_{\Omega}\text{div}\ \vec{v}\di S=\iint_{\Omega}(\nabla\cdot\vec{v})\di S
+    \end{aligned}\]
+    \indent 现在回到对于网格的讨论来.对于顶点$\vec{x}_i$的一个邻域$\Omega(\vec{x}_i)$,根据散度定理有
+    \[\iint_{\Omega(\vec{x}_i)}\Delta f\di S=\iint_{\Omega(\vec{x}_i)}\nabla(\nabla f)\di S=\int_{\p\Omega(\vec{x}_i)}\nabla f\cdot\vec{n}\di s\]
+    其中$\vec{n}$表示给定点处的法向量.我们分别考虑边界\footnote{这里默认取正向边界方向.后文的顶点选取的顺序也依照正向边界的方向.}$\p\Omega(\vec{x}_i)$在$\vec{x}_i$邻接的各个三角形$T_m$中的一段$\p\Omega(\vec{x}_i)\cap T_m$,设$T_m$的顶点为$\vec{x}_i,\vec{x}_{j},\vec{x}_{k}$.
+    \begin{figure}[H]\centering
+        \begin{tikzpicture}
+            \draw (2,3) node[above]{$\vec{x}_i$} -- (0,1) node[left]{$\vec{x}_j$} -- (4,0) node[below right]{$\vec{x}_k$} -- cycle;
+            \draw[thick,blue,-latex] (1,2) --(2.1,0.9);
+            \draw[thick,blue,-latex] (2.1,0.9)--(3,1.5);
+            \node at (1,2) [above left]{$\vec{p}$};
+            \node at (3,1.5) [above right]{$\vec{q}$};
+            \node at (2.1,0.9) [below]{$\vec{r}$};
+            \draw[thick,red,-latex] (1,2)--(3,1.5);
+        \end{tikzpicture}
+        \caption{$\p\Omega(\vec{x}_i)$在$T_m$中的一段(图中的蓝色有向线段)}
+    \end{figure}
+    \indent 在梯度一节中我们已经证明$\nabla f$在给定三角形上是定值,于是依照上图有
+    \[\int_{\p\Omega(\vec{x}_i)\cap T_m}\nabla f\cdot\vec{n}\di s=\nabla f\cdot\int_{\p\Omega(\vec{x}_i)}\vec{n}\di s=\nabla f\cdot\left(\int_{PR}\vec{n}\di s+\int_{RQ}\vec{n}\di s\right)\]
+    而对于有向线段$PR$而言,其方向向量为$\vec{t}=\dfrac{\vec{r}-\vec{p}}{||\vec{r}-\vec{p}||}$,于是
+    \[\int_{PR}\vec{n}\di s=\int_{PR}\left(-\vec{t}^\bot\right)\di s=\dfrac{\left(\vec{p}-\vec{r}\right)^\bot}{||\vec{r}-\vec{p}||}\cdot\int_{PR}\di s=(\vec{p}-\vec{r})^\bot\]
+    同理有$\displaystyle\int_{RQ}\vec{n}\di s=(\vec{r}-\vec{q})^\bot$.于是
+    \[\int_{\p\Omega(\vec{x}_i)\cap T_m}\nabla f\cdot\vec{n}\di s=\nabla f\cdot\left((\vec{p}-\vec{r})^\bot+(\vec{r}-\vec{q})^\bot\right)=\nabla f\cdot(\vec{p}-\vec{q})^\bot\]
+    按照\tbf{局部平均区域}一节中所述的$\Omega\left(\vec{x}_i\right)$的取法,$\vec{p}$和$\vec{q}$分别为各自边的中点.于是
+    \[\int_{\p\Omega(\vec{x}_i)\cap T_m}\nabla f\cdot\vec{n}\di s=\dfrac12\nabla f\cdot\left(\vec{x}_j-\vec{x}_k\right)^\bot\]
+    现在再将\footnote{为了简洁考虑,记$f$在$\vec{x}_i$处的值为$f_i$,其余类似}上一节中推导的梯度公式变形可得
+    \[\nabla f=\left(f_j-f_i\right)\dfrac{\left(\vec{x}_i-\vec{x}_k\right)^\bot}{2A_m}+\left(f_k-f_i\right)\dfrac{\left(\vec{x}_j-\vec{x}_i\right)^\bot}{2A_m}\]
+    代入上式可得
+    \[\begin{aligned}
+        \int_{\p\Omega(\vec{x}_i)\cap T_m}\nabla f\cdot\vec{n}\di s
+        &=\dfrac{1}{4A_m}\left[\left(f_j-f_i\right)\left(\vec{x}_i-\vec{x}_k\right)^\bot\left(\vec{x}_j-\vec{x}_k\right)^\bot+\left(f_k-f_i\right)\left(\vec{x}_j-\vec{x}_i\right)^\bot\left(\vec{x}_j-\vec{x}_k\right)^\bot\right] \\
+        &= \dfrac{1}{4A_m}\left[\left(f_j-f_i\right)\left(\vec{x}_i-\vec{x}_k\right)\cdot\left(\vec{x}_j-\vec{x}_k\right)+\left(f_k-f_i\right)\left(\vec{x}_i-\vec{x}_j\right)\cdot\left(\vec{x}_k-\vec{x}_j\right)\right]
+    \end{aligned}\]
+    上面的式子中恰好存在边的点乘与面积之比,因此考虑用三角函数表示.事实上,对于任意的$\triangle ABC$总有
+    \[\dfrac{\overrightarrow{AB}\cdot\overrightarrow{AC}}{A_{\triangle ABC}}=\dfrac{\overline{AB}\cdot\overline{AC}\cdot\cos A}{\dfrac12\overline{AB}\cdot\overline{AC}\cdot\sin A}=2\cot A\]
+    于是把这一结论运用到上式即可得
+    \[\int_{\p\Omega(\vec{x}_i)\cap T_m}\nabla f\cdot\vec{n}\di s=\dfrac12\left[\left(f_j-f_i\right)\cot\gamma_k+\left(f_k-f_i\right)\cot\gamma_j\right]\]
+    其中$\gamma_j$和$\gamma_k$分别是顶点$\vec{x}_j$和$\vec{x}_k$处的角.现在,我们将$\p\Omega(\vec{x}_i)$在所有邻接三角形中的部分累加起来,即可得
+    \[\int_{\p\Omega(\vec{x}_i)}\nabla f\cdot\vec{n}\di s=\dfrac{1}{2}\sum_{j\in\Omega(i)}\left(\cot\alpha_{ij}+\cot\beta_{ij}\right)\left(f_j-f_i\right)\]
+    其中$\alpha_{ij}$和$\beta_{ij}$是与边$(\vec{x}_i,\vec{x}_j)$相邻的两个三角形中该边所对的角.最后,我们只需要将上式除以邻域$\Omega(\vec{x}_i)$的面积$A(\vec{x}_i)$即可得到余切Laplacian的定义,即
+    \[\Delta f\left(x_i\right)=\dfrac{1}{2A(\vec{x}_i)}\sum_{j\in\Omega(i)}\left(\cot\alpha_{ij}+\cot\beta_{ij}\right)\left(f_j-f_i\right)\]
+    在实际应用中,由于$A(\vec{x}_i)$是定值,因此我们通常令权重$w_{ij}$为
+    \[w_{ij}=\dfrac12\left(\cot\alpha_{ij}+\cot\beta_{ij}\right)\]
+    后进行归一化处理.\\
+    \indent 对权值进行简化,我们可以得到均匀Laplacian的定义.均匀Laplacian的计算量较小,但没有恰当的几何意义,在很多时候也经常导致问题.
 \end{proof}
 \subsection{网格平滑}
 随着三维扫描和曲面重建技术的发展,得到实体表面的多边形网格表示已经不是难事,但所得到的表面往往包含噪声.为了将其转化为更光滑的网格以便后续处理,我们需要用到\tbf{网格平滑}技术.
