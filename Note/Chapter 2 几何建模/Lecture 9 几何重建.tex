@@ -1,0 +1,132 @@
+\documentclass{ctexart}
+\usepackage{Note}
+\begin{document}
+\section{几何重建}
+\subsection{几何重建概述}
+现实世界中的三维物体和场景无法直接以数学模型或几何形式被计算机存储或处理.大多数时候,我们只能通过图像,视频或点云数据间接地获取三维信息,这些数据本身
+离散而稀疏,带有噪声,也没有拓扑结构.为了用计算机处理形状,空间结构和几何关系,必须将这些数据重建为连续的几何模型.
+\begin{definition}[几何重建]
+    \tbf{几何重建(Geometry Reconstruction)}从离散的三维数据(如点云,深度图像或多视图图像)中,重建出物体或场景的连续几何形状与结构的过程.
+\end{definition}
+\subsection{几何变换基础}
+\begin{theorem}[平移]
+    平移对应的数学操作为向量加法.设物体上任意一点$P$的坐标为$\vec{p}$,平移向量为$\vec{t}$,则平移后的点$P'$的坐标$\vec{p}'=\vec{p}+\vec{t}$.例如,对于三维空间而言有
+    \[\begin{bmatrix}
+        x'\\y'\\z'
+    \end{bmatrix}=\begin{bmatrix}
+        x\\y\\z
+    \end{bmatrix}+\begin{bmatrix}
+        t_x\\t_y\\t_z
+    \end{bmatrix}=\begin{bmatrix}
+        x+t_x\\y+t_y\\z+t_z
+    \end{bmatrix}\]
+\end{theorem}
+\begin{theorem}[旋转]
+    旋转对应的数学操作为矩阵乘法.设物体上任意一点$P$的坐标为$\vec{p}$,旋转矩阵为$\mat{R}$,则旋转后的点$P'$的坐标$\vec{p}'=\mat{R}\vec{p}$.在二维平面中,绕原点逆时针旋转$\theta$角度的旋转矩阵为
+    \[\mat{R}=\begin{bmatrix}
+        \cos\theta & -\sin\theta\\
+        \sin\theta & \cos\theta
+    \end{bmatrix}\]
+    在三维空间中,绕$x,y,z$轴分别旋转$\alpha,\beta,\gamma$角度的旋转矩阵分别为
+    \[\mat{R}_x=\begin{bmatrix}
+        1 & 0 & 0\\
+        0 & \cos\alpha & -\sin\alpha\\
+        0 & \sin\alpha & \cos\alpha
+    \end{bmatrix},\quad \mat{R}_y=\begin{bmatrix}
+        \cos\beta & 0 & \sin\beta\\
+        0 & 1 & 0\\
+        -\sin\beta & 0 & \cos\beta
+    \end{bmatrix},\quad \mat{R}_z=\begin{bmatrix}
+        \cos\gamma & -\sin\gamma & 0\\
+        \sin\gamma & \cos\gamma & 0\\
+        0 & 0 & 1
+    \end{bmatrix}\]
+\end{theorem}
+\begin{theorem}[绕任意轴的旋转]
+    在三维空间中,绕单位向量$\vec{a}=\left(a_x,a_y,a_z\right)$定义的轴逆时针旋转$\theta$角度的旋转矩阵为
+\end{theorem}
+\subsection{点云的配准/注册}
+在几何重建中,我们往往会从不同角度和位置对同一场景或物体分别采集点云数据.将不同视角下的点云对齐到同一坐标系下,才能得到完整的重建数据.
+\begin{definition}[点云配准/注册]
+    \tbf{点云配准/注册(Point Cloud Registration)}是将来自不同视角或传感器的多个点云数据集对齐到同一坐标系下的过程.
+\end{definition}
+现在我们来介绍一种经典的点云配准算法,即ICP(Iterative Closest Point)算法.
+\subsubsection{点云配准的ICP算法}
+我们在不同角度测得的点云总是保长度的,这意味着描述同一物体的点云之间总是可以通过平移和旋转变换对齐.\\
+\indent 给定待变换点云$S$和目标点云$T$, ICP算法的目标是找到一组最佳的旋转和平移变换$\vec{R},\vec{t}$使得$S$经变换后最大程度上地与$T$对其. ICP算法的具体流程如下:
+\begin{enumerate}[label=\tbf{\arabic*.},topsep=0pt,parsep=0pt,itemsep=0pt,partopsep=0pt]
+    \item 通过主成分分析(PCA, Principal Component Analysis)初始化一组变换$\vec{R},\vec{t}$作为估计变换的初值.
+    \item 将当前求得的变换$\vec{R},\vec{t}$应用于$S$,对于$S$中的各点$\vec{p}_i$变换后得到$\vec{p}_i'=\vec{R}\vec{p}_i+\vec{t}$.然后找到$T$中与$\vec{p}_i'$中最接近的点$\vec{q}_i$,如此构成$S'$与$T$的一一对应.同时,舍去距离过远的点对.
+    \item 在余下的$N$组点对$\left\{\left(\vec{p}_i',\vec{q}_i\right):i=1,\cdots,N\right\}$中,构造累计误差函数
+    \[E=\sum_{i=1}^{N}\left|\left|\vec{p}_i'-\vec{q}_i\right|\right|^2=\sum_{i=1}^{N}\left|\left|\mat{R}\vec{p}_i+\vec{t}-\vec{q}_i\right|\right|^2\]
+    注意这里的$\mat{R},\vec{t}$是需要求解的变量,与\tbf{2.}中前一步迭代求得的$\mat{R},\vec{t}$是不同的.前一步求得的$\mat{R},\vec{t}$\textit{只用于}对应关系的确定,不直接参与后续的最小化计算.\\
+    然后,通过奇异值分解(SVD, Singular value decomposition)求解最小化问题:
+    \[(\mat{R},\vec{t})=\arg\min_{\mat{R},\vec{t}}E\]
+    \item 重复步骤2和3,直到累计误差$E$小于预设阈值或达到最大迭代次数.
+\end{enumerate}
+现在我们具体地介绍上述算法中重要的两步,即PCA和SVD.
+\subsubsection{主成分分析}
+\begin{definition}[主成分分析]
+    \tbf{主成分分析(Principal Component Analysis, PCA)}是一种统计方法,用于通过线性变换将数据从高维空间映射到低维空间,以保留数据的主要特征和结构.
+\end{definition}
+一般而言,点云的分布在空间中是各向异性的,即在某些方向上点云的变化更显著.通过PCA可以找到点云数据的主要方向(即主轴),从而为ICP算法提供一个合理的初始变换估计.现在给出PCA的具体步骤.\\
+\indent 首先,考虑给定的一组点\footnote{每个点都是一个三维向量,表示该点在三维空间中的位置.}$\li{\vec p},N$以及中心坐标
+\[\bar{\vec{p}}=\dfrac1N\sum_{i=1}^{N}\vec{p}_i\]
+首先,为了防止平移对PCA结果的影响,我们需要将点云数据进行中心化处理,即将每个点减去中心坐标:
+\[\vec{p}_i'=\vec{p}_i-\bar{\vec{p}},\quad i=1,\cdots,N\]
+构造矩阵
+\[\mat{P}=\begin{bmatrix}
+    \vec{p}_1'\\\vec{p}_2'\\\vdots\\\vec{p}_N'
+\end{bmatrix}\]
+然后计算$\mat{P}$的协方差矩阵
+\[\bs\Sigma_{\mat{P}}=\mat{P}\mat{P}^{\text{t}}\]
+二维情况下的协方差矩阵的两个特征向量$\vec{v}_1,\vec{v}_2$表示数据的两条轴线.对应于更大的特征值的特征向量$\vec{v}_1$表示数据变化更显著的方向,即主成分方向,而$\vec{v}_2$则表示数据变化最小的方向\footnote{例如,如果数据点沿一条直线附近随机分布,那么$\vec{v}_1$就是该直线的法向量,$\vec{v}_2$是该直线的方向向量}.对于三维情况也是同理.\\
+\indent 对协方差矩阵$\bs{\Sigma}_{\mat{P}}$进行特征值分解,可得:
+\[\bs{\Sigma}_{\mat{P}}=\mat{V}\bs{\Lambda}\mat{V}^{\text{t}}\]
+其中矩阵$\mat{V}$的列向量即为$\bs{\Sigma}_{\mat{P}}$的特征向量,它们也就确定了点云的主轴方向.\\
+\indent 现在,对给定的两个点云$S$和$T$,我们分别对它们进行PCA,得到各自的中心$\bar{\vec{p}},\bar{\vec{q}}$以及主轴$\vec{v}_{s1},\vec{v}_{s2},\vec{v}_{s3}$和$\vec{v}_{t1},\vec{v}_{t2},\vec{v}_{t3}$.既然变换仅由平移和旋转构成,我们可以认为$S$和$T$的主轴应当近似地重合.于是,先通过平移使得两个点云的中心重合,即
+\[\vec{t}=\bar{\vec{q}}-\bar{\vec{p}}\]
+然后,通过旋转使得两个点云的主轴方向对齐.设旋转矩阵为$\mat{R}$,则有
+\[\mat{R}\vec{s}_i=\vec{t}_i,\quad i=1,2,3\]
+这样求得的$\mat{R},\vec{t}$即可作为ICP算法的初始变换估计.
+\subsubsection{奇异值分解}
+对于前述的最小化问题,事实上是具有唯一解的.我们可以用奇异值分解来求解.\\
+\indent 注意到$E$中含有两个变量$\mat{R},\vec{t}$.我们先求解使得$E$最小的$\vec{t}$,然后再求解$\mat{R}$.这是为了对齐质心后才能进行旋转矩阵的求解.\\
+\indent 设$S$和$T$的中心分别为$\bar{\vec{p}},\bar{\vec{q}}$.令
+\[\tilde{\vec{p}}_i=\vec{p}_i-\bar{\vec{p}},\quad\tilde{\vec{q}}_i=\vec{q}_i-\bar{\vec{q}}\]
+于是
+\[E=\sum_{i=1}^{N}\left|\left|\mat{R}\vec{p}_i+\vec{t}-\vec{q}_i\right|\right|^2=\sum_{i=1}^{N}\left|\left|\mat{R}\tilde{\vec{p}_i}-\tilde{\vec{q}_i}+\left(\mat{R}\bar{\vec{p}}+\vec{t}-\bar{\vec{q}}\right)\right|\right|^2\]
+关于$\mat{R}\bar{\vec{p}}+\vec{t}-\bar{\vec{q}}$展开后对$\vec{t}$求导并令其为$0$,可得(实际上直接观察也容易得到)
+\[\mat{R}\bar{\vec{p}}+\vec{t}-\bar{\vec{q}}=\mbf{0}\]
+于是
+\[\vec{t}=\bar{\vec{q}}-\mat{R}\bar{\vec{p}}\]
+注意这里的$\vec{t}$是关于$\mat{R}$的函数,因此求解$\mat{R}$完毕后需要重新进行带入.现在把$\vec{t}$代入$E$,可得
+\[E=\sum_{i=1}^{N}\left|\left|\mat{R}\tilde{\vec{p}}_i-\tilde{\vec{q}}_i\right|\right|^2\]
+上面的式子中已经没有$\vec{t}$,即已经完成对齐质心的工作.我们只需要最小化$E$关于$\mat{R}$的部分.将平方展开,并且注意到$\left|\left|\mat{R}\tilde{\vec{p}}_i\right|\right|=\left|\left|\tilde{\vec{p}}_i\right|\right|$(旋转显然不改变向量的模长),于是可得
+\[E=\sum_{i=1}^{N}\left(\left|\left|\tilde{\vec{p}}_i\right|\right|^2+\left|\left|\tilde{\vec{q}}_i\right|\right|^2\right)-2\sum_{i=1}^{N}\tilde{\vec{q}}_i^{\text{t}}\mat{R}\tilde{\vec{p}}_i\]
+注意到上式中只有最后一项与$\mat{R}$有关,因此等价于最大化
+\[\mat{R}^{\ast}=\arg\max_{\mat{R}}\sum_{i=1}^{N}\tilde{\vec{q}}_i^{\text{t}}\mat{R}\tilde{\vec{p}}_i\]
+自然地,我们会想到标量与矩阵的迹之间的关联.由于每个求和项都是向量的内积,可以视作$1\times1$的矩阵,于是自然可以将它写做迹的形式:
+\[\tilde{\vec{q}}_i^{\text{t}}\mat{R}\tilde{\vec{p}}_i=\text{trace}\left(\tilde{\vec{q}}_i^{\text{t}}\mat{R}\tilde{\vec{p}}_i\right)=\text{trace}\left(\tilde{\vec{p}}_i\tilde{\vec{q}}_i^{\text{t}}\mat{R}\right)\]
+于是求和后就有
+\[\sum_{i=1}^{N}\tilde{\vec{q}}_i^{\text{t}}\mat{R}\tilde{\vec{p}}_i=\text{trace}\left(\sum_{i=1}^{N}\tilde{\vec{p}}_i\tilde{\vec{q}}_i^{\text{t}}\mat{R}\right)=\text{trace}\left(\mat{R}\sum_{i=1}^{N}\tilde{\vec{p}}_i\tilde{\vec{q}}_i^{\text{t}}\right)\]
+为了写成矩阵形式,定义
+\[\mat{M}=\sum_{i=1}^{N}\tilde{\vec{p}}_i\tilde{\vec{q}}_i^{\text{t}}\]
+这是一个$3\times 3$的矩阵,对其进行奇异值分解,可得
+\[\mat{M}=\mat{U}\bs{\Sigma}\mat{V}^{\text{t}}\]
+其中$\mat{U},\mat{V}$是正交矩阵, $\bs{\Sigma}$是对角矩阵,其对角线元素为非负的奇异值.于是
+\[\text{trace}\left(\mat{R}\sum_{i=1}^{N}\tilde{\vec{p}}_i\tilde{\vec{q}}_i^{\text{t}}\right)=\text{trace}\left(\mat{R}\mat{M}\right)=\text{trace}\left(\mat{R}\mat{U}\bs{\Sigma}\mat{V}^{\text{t}}\right)=\text{trace}\left(\bs{\Sigma}\mat{V}^{\text{t}}\mat{R}\mat{U}\right)\]
+由于$\mat{R}$是旋转矩阵,因此它自然也是正交矩阵.于是设$\mat{X}=\mat{V}^{\text{t}}\mat{R}\mat{U}$,则$\mat{X}$也是正交矩阵.于是
+\[\text{trace}\left(\bs{\Sigma}\mat{V}^{\text{t}}\mat{R}\mat{U}\right)=\text{trace}\left(\bs{\Sigma}\mat{X}\right)=\sigma_1x_{11}+\sigma_2x_{22}+\sigma_3x_{33}\]
+其中$\sigma_i$为$\mat{M}$的奇异值(即$\bs{\Sigma}$的对角线元素), $x_{ii}$为$\mat{X}$的对角线元素.由于$\mat{X}$是正交矩阵,因此其元素的绝对值均不大于$1$,即$|x_{ii}|\leq 1$.为了最大化上式,显然需要$x_{ii}=1$.这就要求$\mat{X}=\mat{I}$,即
+\[\mat{V}^{\text{t}}\mat{R}\mat{U}=\mat{I}\Rightarrow \mat{R}=\mat{V}\mat{U}^{\text{t}}\]
+最后,还需确保$\mat{R}$是合法的旋转矩阵,即要求$\det\mat{R}=1$.如果$\det\mat{R}=-1$,这样的$\mat{R}$表示了一个反射变换.这里直接给出修正后的结果(这涉及到一些线性代数知识):
+\[\mat{R}^\ast=\mat{V}\begin{bmatrix}
+    1&0&0\\0&1&0\\0&0&\det\mat{V}\mat{U}^{\text{t}}
+\end{bmatrix}=\mat{U}^{\text{t}}\]
+当然,在课程中并没有讲到这种情况,因此有
+\[\mat{R}^\ast=\mat{V}\mat{U}^{\text{t}}\]
+回代求出$\vec{t}^\ast$,有
+\[\vec{t}^\ast=\bar{\vec{q}}-\mat{R}^\ast\bar{\vec{p}}\]
+这样得到的$\mat{R}^\ast,\vec{t}^\ast$即可作为下一轮迭代用于确定对应关系的变换.
+\end{document}
