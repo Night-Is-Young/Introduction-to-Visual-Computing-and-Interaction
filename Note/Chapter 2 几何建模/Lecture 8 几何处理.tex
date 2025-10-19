@@ -32,7 +32,7 @@
     不妨假定$\vec{x}_a,\vec{x}_b$和$\vec{x}_c$在三角形$T$中对应的顶点分别为$A,B$和$C$, $\vec{x}$对应$T$内的一点$P$.以$\alpha(\vec{x})$为例,根据重心坐标与三角形面积的关系,有
     \[\alpha(\vec{x})=\dfrac{A_{\triangle PBC}}{A_{\triangle ABC}}=\dfrac{\overline{BP}\cdot\overline{BC}\cdot\sin\angle PBC}{2A_T}=\dfrac{\left|\left|\overrightarrow{BP}\times\overrightarrow{BC}\right|\right|}{2A_T}=\dfrac{\left(\vec{x}-\vec{x}_b\right)\cdot\left(\vec{x}_c-\vec{x}_b\right)^{\bot}}{2A_T}\]
     其中$\left(\vec{x}_c-\vec{x}_b\right)^\bot$表示该向量在平面上逆时针旋转$90^\circ$后的向量.于是
-    \[\nabla\alpha(\vec{x})=\dfrac{\left(\vec{x}_c-\vec{x}_b\right)}{2A_T}\]
+    \[\nabla\alpha(\vec{x})=\dfrac{\left(\vec{x}_c-\vec{x}_b\right)^\bot}{2A_T}\]
     于是
     \[\nabla f(\vec{x})=\dfrac{\left(\vec{x}_c-\vec{x}_b\right)^\bot}{2A_T}f\left(\vec{x}_a\right)+\dfrac{\left(\vec{x}_a-\vec{x}_c\right)^\bot}{2A_T}f\left(\vec{x}_b\right)+\dfrac{\left(\vec{x}_b-\vec{x}_a\right)^\bot}{2A_T}f\left(\vec{x}_c\right)\]
     这表明$\nabla f(\vec{x})$与$\vec{x}$无关,即在三角形内部为常值.
@@ -133,11 +133,11 @@
 \[\dfrac{\p f(\vec{x},t)}{\p t}=\lambda\Delta f(\vec{x},t)\]
 在网格中,高频的噪声就对应于杂乱分布的高温点.随着扩散的进行,热量分布趋于均匀,对应顶点构成的表面也趋于平滑.\\
 \indent 现在,我们需要将扩散流公式在时间和空间上进行离散化,以便在计算机中处理.在空间上的Laplacian离散化已经在前面一节中介绍,即
-\[\dfrac{\p f\left(\vec{x}_i,t\right)}{\p t}=\lambda\Delta f\left(\vec{x}_i,t\right)=\lambda\sum_{\vec{x}_j\in\Omega\left(\vec{x}_i\right)}w_{ij}\left(f\left(\vec{x}_j\right)-f\left(\vec{x}_i\right)\right)\]
+\[\dfrac{\p f\left(\vec{x}_i,t\right)}{\p t}=\lambda\Delta f\left(\vec{x}_i,t\right)=\lambda\sum_{\vec{x}_j\in\Omega\left(\vec{x}_i\right)}w_{ij}\left(f\left(\vec{x}_j,t\right)-f\left(\vec{x}_i,t\right)\right)\]
 而在时间上的离散化,可以将$t$划分为步长为$h$的若干个间隔,用有限差分的思想对微分方程进行近似:
 \[\dfrac{\p f\left(\vec{x}_i,t\right)}{\p t}=\dfrac{f\left(\vec{x}_i,t+h\right)-f\left(\vec{x}_i,t\right)}{h}\]
 于是
-\[f\left(\vec{x}_i,t+h\right)=f\left(\vec{x}_i,t\right)+h\dfrac{\p f\left(\vec{x}_i,t\right)}{\p t}=f\left(\vec{x}_i,t\right)+h\lambda\sum_{\vec{x}_j\in\Omega\left(\vec{x}_i\right)}w_{ij}\left(f\left(\vec{x}_j\right)-f\left(\vec{x}_i\right)\right)\]
+\[f\left(\vec{x}_i,t+h\right)=f\left(\vec{x}_i,t\right)+h\dfrac{\p f\left(\vec{x}_i,t\right)}{\p t}=f\left(\vec{x}_i,t\right)+h\lambda\sum_{\vec{x}_j\in\Omega\left(\vec{x}_i\right)}w_{ij}\left(f\left(\vec{x}_j,t\right)-f\left(\vec{x}_i,t\right)\right)\]
 \indent 在网格简化中,我们考虑的``温度''就是顶点的空间坐标.于是,在每次时间间隔为$h$的第$k$次迭代中,每个顶点$\vec{x}_i$的位置按照如下的方式更新:
 \[\vec{x}_i^{(k+1)}\leftarrow\vec{x}_i^{(k)}+\lambda\Delta\vec{x}_i^{(k)}\]
 其中$\lambda$为\tbf{平滑参数}即为前面推导中的$h\lambda$.\\
@@ -202,7 +202,7 @@
     \item 重复以下操作直到达到预定的顶点数:
     \begin{enumerate}[label=\tbf{\alph*.},topsep=0pt,parsep=0pt,itemsep=0pt,partopsep=0pt]
         \item 从优先队列中取出误差最小的点对$(\vec{v}_1,\vec{v}_2)$,并将其坍缩为$\vec{v}^\ast$,在网格结构中实现这一操作.
-        \item 考虑所有坍缩前与$\vec{v}_1,\vec{v}_2$相邻的顶点$\vec{u}_1,\cdots,\vec{u}_n$.首先,由于$\vec{u}_i$相邻的点已经更新为$\bar{\vec{v}}$,因此其相邻的面已经发生改变,因此需要重新计算$\vec{u}_i$的误差矩阵.然后考虑所有与$\vec{u}_i$相邻的顶点$\vec{w}_{i1},\cdots,\vec{w}_{im}$,对于顶点对$\left(\vec{u}_i,\vec{w}_{ij}\right)$,由于$\vec{u}_i$的误差矩阵发生变化,因此需要重新判断点对是否合法,并重新计算收缩点和误差,最后将其更新到优先队列中.
+        \item 考虑所有坍缩前与$\vec{v}_1,\vec{v}_2$相邻的顶点$\vec{u}_1,\cdots,\vec{u}_n$.首先,由于$\vec{u}_i$相邻的点已经更新为$\vec{v}^\ast$,因此其相邻的面已经发生改变,因此需要重新计算$\vec{u}_i$的误差矩阵.然后考虑所有与$\vec{u}_i$相邻的顶点$\vec{w}_{i1},\cdots,\vec{w}_{im}$,对于顶点对$\left(\vec{u}_i,\vec{w}_{ij}\right)$,由于$\vec{u}_i$的误差矩阵发生变化,因此需要重新判断点对是否合法,并重新计算收缩点和误差,最后将其更新到优先队列中.
     \end{enumerate}
 \end{enumerate}
 \end{document}
