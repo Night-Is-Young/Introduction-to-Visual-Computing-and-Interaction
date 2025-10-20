@@ -129,4 +129,97 @@
 回代求出$\vec{t}^\ast$,有
 \[\vec{t}^\ast=\bar{\vec{q}}-\mat{R}^\ast\bar{\vec{p}}\]
 这样得到的$\mat{R}^\ast,\vec{t}^\ast$即可作为下一轮迭代用于确定对应关系的变换.
+\subsection{点云的表面重建}
+\subsubsection{Voronoi图}
+\begin{definition}[Voronoi图]
+    \tbf{Voronoi图(Voronoi Diagram)}是根据点集$P$将空间划分为若干个区域的几何结构,其中每个区域$\Omega_i$对应于$P$中一个给定的顶点$\vec{v}_i$,使得$\Omega_i$内的所有点都比$P$中其他顶点$\vec{v}_j$更接近该顶点$\vec{v}_i$.
+\end{definition}
+事实上,在二维情形中的Voronoi图正是每个点与它临近的点的垂直平分线所构成的图形.尽管如此的定义很简单,但在实现上却仍比较复杂.我们可以用另外一种方式间接地实现Voronoi图的构造.
+\subsubsection{Delaunay三角剖分}
+\begin{definition}[Delaunay三角剖分]
+    \tbf{Delaunay三角剖分(Delaunay Triangulation)}是点集$\mathcal{P}$的剖分,它将$\mathcal{P}$连接成三角形网格,使得每个三角形的外接圆内不包含其他点.
+\end{definition}
+Delaunay三角剖分是Voronoi图的对偶图.Voronoi图的每个顶点对应Delaunay三角剖分中的一个三角形的外心, Delaunay三角剖分中的每个顶点即为Voronoi图中的一个区域对应的点.
+\begin{figure}[H]\centering
+    \includegraphics[scale=0.3]{figure/Delaunay-Voronoi.png}
+    \caption{Delaunay三角剖分与Voronoi图的关系}
+\end{figure}
+可以证明Delaunay三角剖分是使得所有三角形中最小内角最大化的剖分方式,因而尽可能避免了细长三角形的出现.结合三角形外接圆的形式,我们可以得出:在Delaunay三角剖分中,任一被两个三角形共用的边所对的两个角之和小于$180^\circ$(否则这四点将落在同一圆内,这是与定义矛盾的.).然而,如果将这一条边所在的四边形替换为由另一条对角线所构成的两个三角形,则这两个新三角形就符合剖分性质了.据此,我们可以定义Delaunay三角剖分中最基本的操作——边翻转(Edge Flip),如下图所示:
+\begin{figure}[H]\centering
+    \includegraphics[scale=0.3]{figure/EdgeFlip.png}
+    \caption{边翻转操作}
+\end{figure}
+于是,这样的思路产生了一个非常简单的算法:任一构造一个三角剖分,检查所有被共用的边,如果不满足上述条件就进行边翻转操作,直到所有边都满足条件为止.\\
+\indent 遗憾的是这种算法效率并不高.我们可以采取增量式算法,每次向已有的三角剖分中加入一个点,并检查受影响的三角形和进行必要的边翻转操作.效率最高的算法是分治算法,通过每次将点集划分为两个子集,递归地对两个子集进行Delaunay三角剖分,然后将两个子集的剖分结果合并起来.运用一些巧妙的技巧可以使得合并操作的复杂度为$O(n)$,于是算法的复杂度为$O(n\log n)$,并可以进一步优化为$O(n\log\log n)$.
+\subsubsection{Poisson表面重建}
+与Delaunay三角剖分这种由点云直接构造三角网格的方法相比, Poisson表面重建则采取了相对间接的方法,先构建符号距离函数(Signed Distance Function, SDF),然后通过提取等值面来获得表面模型.这可以避免对点云直接建模时可能出现的孔洞和噪声问题.
+\begin{definition}[Poisson表面重建]
+    \tbf{Poisson表面重建(Poisson Surface Reconstruction)}是一种基于点云法线信息,通过求解Poisson方程来重建连续表面模型的方法.
+\end{definition}
+具体而言,对于空间中的几何体$M$,定义函数$\chi_M$使得
+\[\chi_M(\vec{v})=\left\{\begin{array}{l}
+    1,\quad \vec{v}\in M\\
+    0,\quad \vec{v}\notin M
+\end{array}\right.\]
+于是该指示函数的梯度场$\nabla\chi_M$在$M$的表面$\p M$处的方向与表面法线恰好相反.因此,对一个带有法向量的点云$\vec{V}$可以看作$\nabla\chi_M$在$\p M$上的一个采样.于是问题转化为从点云的法线场重建出$\chi_M$,即按照下式估计$\chi_M$:
+\[\nabla\chi_M=-\vec{V}\]
+由于右侧的$\vec{V}$不一定可积,因此可能无法找到方程的精确解.我们对方程两边取散度,得到Poisson方程:
+\[\Delta\chi_M=-\nabla\cdot\vec{V}\]
+通过最小二乘法求解该方程,即可得到$\chi_M$的近似解.最后,通过Marching Cubes等等值面提取算法,从$\chi_M$中提取出表面模型.\\
+\indent Poisson表面重建依赖于带法向量的点云$\vec{V}$的构建.由于点云在空间上不是均布的,我们需要高效的对其离散化和处理.常用的办法是八叉树(Octree)结构,它能够自适应地对点云进行空间划分,在点云密集的区域使用更细的划分,而在点云稀疏的区域使用较粗的划分.这样不仅节省了存储空间,也提高了计算效率.八叉树的构造方法如下:
+\begin{enumerate}[label=\tbf{\arabic*.},topsep=0pt,parsep=0pt,itemsep=0pt,partopsep=0pt]
+    \item 初始化一个包含所有点的立方体区域作为八叉树的根节点.
+    \item 递归地将每个节点划分为八个子节点,直到满足以下条件之一:
+    \begin{itemize}[topsep=0pt,parsep=0pt,itemsep=0pt,partopsep=0pt]
+        \item 节点内的点数小于预设的阈值.
+        \item 达到预设的最大深度.
+    \end{itemize}
+    \item 对于每个叶节点,计算其包含的点的法向量信息,并将其存储在节点中.
+\end{enumerate}
+在八叉树的每个节点上定义局部基函数(通常是线性函数)$\phi_i(\vec{v})$,那么上述问题即可转化为线性方程组的求解问题,从而得到最终的$\chi_M$.
+\subsection{隐式表面重建——Marching Cubes算法}
+符号距离场函数$f$的定义如下:
+\[f_M(\vec{v})=\left\{\begin{array}{l}
+    \displaystyle\min_{\vec{v}'\in\p M}\left|\left|\vec{v}-\vec{v}'\right|\right|,\quad \vec{v}\in M\\
+    \displaystyle-\min_{\vec{v}'\in\p M}\left|\left|\vec{v}-\vec{v}'\right|\right|,\quad \vec{v}\notin M
+\end{array}\right.\]
+它本身隐式地表示了几何形状,其0-等值面对应着几何形状的表面.许多方法能够通过对符号距离场求值来计算几何表面的位置.行进立方体(Marching Cubes)算法就是这样一种方法,它能够从符号距离函数中重建网格模型,被广泛使用于整个几何建模领域.\\
+\indent Marching Cubes算法的基本思想是将三维空间划分为一系列立方体单元,然后在每个立方体内根据符号距离函数的值来确定表面与立方体的交点.具体步骤如下:
+\begin{enumerate}[label=\tbf{\arabic*.},topsep=0pt,parsep=0pt,itemsep=0pt,partopsep=0pt]
+    \item 将三维空间划分为均匀的立方体网格.
+    \item 对于每个立方体的所有顶点$\vec{v}_i(i=0,\cdots,7)$,其SDF值$sdf\left(\vec{v}_i\right)$的正负值决定了其在几何体的外部或内部.如果一条边的两个顶点的SDF值符号不同,则表明该边与几何体的表面相交.如此,每个立方体的顶点的符号组合共有$2^8=256$种可能,可以将其编码为一个8位的二进制数$c$. Marching Cubes算法预先定义了两张查找表:一张是边状态表$\mathcal{E}$,用于指示哪些边与表面相交;另一张是三角形表$\mathcal{T}$,用于指示如何连接这些交点以形成三角形网格.
+    \item 首先,根据立方体顶点的符号组合计算出索引$c$.然后,查找边状态表$\mathcal{E}[c]$以确定哪些边与表面相交.对于每条相交的边,通过线性插值计算出交点的位置,即
+    \[\vec{v}^\ast=\dfrac{v_2-v^\ast}{v_2-v_1}\vec{v}_1+\dfrac{v^\ast-v_1}{v_2-v_1}\vec{v}_2\]
+    其中$\vec{v}^\ast$是交点位置, $\vec{v}_1,\vec{v}_2$是边的两个端点, $v_1,v_2$是顶点的SDF值, $v^\ast=0$表示表面的SDF值.\\
+    然后,根据三角形表$\mathcal{T}[c]$确定需要将哪些交点连接成三角形,将交点位置和生成的三角形添加到最终的网格模型中.
+    \item 重复步骤2和3,直到处理完所有立方体单元.
+\end{enumerate}
+\subsection{点云的模型拟合}
+模型拟合指的是从给定的点云中提取出平面或球体,圆柱体等几何基元的过程.它在低层次的三维数据(无序的点集)和高层次的三维形状的结构信息之间建立了联系,为许多下游的应用提供基础.\\
+\indent 我们可以如下定义模型拟合问题\footnote{对二维空间中的数据进行线性拟合实际上就可以视作对二维点云的直线拟合.}:对于给定的点云$P=\left\{\vec{v}_i:i=1,\cdots,N\right\}$和给定的一类几何形状$S$,求$P$的子集$P'$和$S$的方程$F(\vec{v})$的参数,使得$\forall\vec{v}_j\in P',F\left(\vec{v}_j\right)=0$.由于实际的点云有一定的噪声,因此通常不能做到完美拟合.我们一般定义一个误差函数,然后通过最小二乘法等数值方法近似求解.
+\subsubsection{拟合方法示例——平面拟合}
+我们考虑一个比较简单的例子:输入的点云$P$近似在一个平面$ax+by+cz+d=0$上.定义误差函数$E$为点到平面的距离的平方和:
+\[E=\sum_{i=1}^{N}d_{\vec{v}_i}=\sum_{i=1}^{N}\left(ax_i+by_i+cz_i+d\right)^2\]
+写成矩阵乘法的形式即
+\[E=\left|\left|\mat{P}\vec{M}\right|\right|^2,\quad\mat{P}=\begin{bmatrix}
+    \vec{v}_1^{\text{t}}&1\\
+    \vdots&\vdots\\
+    \vec{v}_N^{\text{t}}&1
+\end{bmatrix},\quad\vec{M}=\begin{bmatrix}
+    a\\b\\c\\d
+\end{bmatrix}\]
+对$\mat{P}$奇异值分解,有
+\[\mat{P}=\mat{U}\bs{\Sigma}\mat{V}^{\text{t}}\]
+由于$E=\left|\left|\mat{U}\bs{\Sigma}\mat{V}^{\text{t}}\vec{M}\right|\right|^2=\left|\left|\bs{\Sigma}\mat{V}^{\text{t}}\vec{M}\right|\right|^2$(正交矩阵不改变向量的模长),因此为了最小化$E$,需要$\vec{M}$应当是$\mat{V}^{\text{t}}$的最后一列(这样才能对应于最小的奇异值).这样就得到了平面的参数$a,b,c,d$.
+\subsubsection{随机抽样一致性(RANSAC)算法}
+实际问题是复杂的,因为$P$中的某些点并不属于待拟合的几何形状\footnote{例如一个建筑物的点云中不可能所有点都属于某一特定的墙面,除非这个建筑物是一堵墙.}.为了解决这个问题,我们可以使用随机抽样一致性(RANSAC, Random Sample Consensus)算法.\\
+\indent 对于点云$P$中的点和待求的形状$S$,显然有相当一部分点落在$S$上(在实际情况中也可能是$S$附近的一个区域,下文的落在$S$上也即这种含义).仍然以平面的拟合为例,如果落在$S$上的概率为$w$,那么从点云中随机选择$n$个点,恰好确定目标平面的概率为$w^n$.重复这一过程$k$次,成功使得取样点均在$S$上的概率为
+\[p=1-\left(1-w^n\right)^k\]
+RANSAC算法的基本思想正是通过多次随机采样来增加找到正确模型的概率.具体步骤如下:
+\begin{enumerate}[label=\tbf{\arabic*.},topsep=0pt,parsep=0pt,itemsep=0pt,partopsep=0pt]
+    \item 随机从点云$P$中选择一定数量的点(通常选取的较少,以免需要的采样次数过多.对于平面这种简单的图形,一般选取三个点即可)来确定一个候选模型$S'$.
+    \item 计算点云$P$中每个点到模型$S'$的距离,并将距离小于预设阈值的点视为内点(即属于模型的点).统计内点的数量.
+    \item 重复步骤1和2多次,记录内点数量最多的模型$S^\ast$及其对应的内点集$P^\ast$.
+    \item 使用内点集$P^\ast$重新拟合模型,得到最终的几何形状.
+\end{enumerate}
 \end{document}
