@@ -2,8 +2,9 @@
 \usepackage{Note}
 \begin{document}
 \section{几何变换}
-\subsection{齐次坐标系}
-我们在上一节中简单介绍了几何变换对应的数学操作.例如,平移可以视作向量的加法,旋转可以视作旋转矩阵与向量的乘法.但是,这些操作并不能统一表示,因而带来了额外的麻烦.例如,平移无法表示为矩阵与向量的乘法.为了解决这个问题,我们可以引入齐次坐标系的概念.\\
+\subsection{齐次坐标系及其中的几何变换}
+我们在上一节中简单介绍了几何变换对应的数学操作.例如,平移可以视作向量的加法,旋转可以视作旋转矩阵与向量的乘法.但是,这些操作并不能统一表示,因而带来了额外的麻烦.例如,平移无法表示为矩阵与向量的乘法.为了解决这个问题,我们可以引入齐次坐标系的概念.
+\subsubsection{齐次坐标系的定义}
 \indent 齐次坐标系的基本思想是,通过引入额外的维度,将所有的几何变换都表示为矩阵与向量的乘法.
 \begin{definition}[齐次坐标系]
     在$n$维空间$R^n$中,点$\vec{v}=\left(\li x,n\right)$的齐次坐标表示为$\left(\li x,n,1\right)$,即在原有坐标的基础上增加一个分量恒为$1$的维度.\\
@@ -12,14 +13,14 @@
 如此,我们可以将所有的几何变换都表示为$(n+1)\times(n+1)$的矩阵与齐次坐标向量的乘法.例如,在二维空间中的一些几何操作对应的矩阵如下:
 \begin{table}[H]\centering
     \begin{tabular}{cc}
-        平移&旋转\\
+        平移&\quad 旋转\\
         $\begin{bmatrix}
             x'\\y'\\1
         \end{bmatrix}=\begin{bmatrix}
             1&0&t_x\\0&1&t_y\\0&0&1
         \end{bmatrix}\begin{bmatrix}
             x\\y\\1
-        \end{bmatrix}$&$\begin{bmatrix}
+        \end{bmatrix}$&\quad$\begin{bmatrix}
             x'\\y'\\1
         \end{bmatrix}=\begin{bmatrix}
             \cos\theta&-\sin\theta&0\\\sin\theta&\cos\theta&0\\0&0&1
@@ -28,4 +29,13 @@
         \end{bmatrix}$
     \end{tabular}
 \end{table}
+\subsubsection{旋转矩阵的推导}
+在上一节中我们不加证明地给出了旋转矩阵的定义.在此我们详细地推导旋转矩阵的形式.
+\begin{proof}
+    考虑三维空间中的点$\vec{v}$,旋转轴$\vec{a}$和旋转角度$\theta$.从$\vec{v}$旋转至$\vec{v}'$的操作可以分解为平行于$\vec{a}$的分量$\vec{r}$和垂直于$\vec{a}$的分量$\vec{u}$.\\
+    根据投影向量的定义,$\vec{r}=(\vec{v}\cdot\vec{a})\vec{a}$,$\vec{u}=\vec{v}-(\vec{v}\cdot\vec{a})\vec{a}$.旋转过程中,$\vec{r}$保持不变,而$\vec{u}$则绕$\vec{a}$旋转$\theta$角度,这可以由下面的方式得到
+    \[\vec{u}'=\vec{u}\cos\theta+\vec{u}^{\bot}\sin\theta\]
+    注意到$\vec{u}^\bot=\vec{a}\times\vec{v}$,于是前面的推导可以整理成
+    \[\vec{v}'=\left[\left(\vec{v}-(\vec{v}\cdot\vec{a})\vec{a}\right)\cos\theta\right]+(\vec{a}\times\vec{v})\sin\theta+(\vec{v}\cdot\vec{a})\vec{a}\]
+\end{proof}
 \end{document}
