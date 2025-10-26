@@ -184,19 +184,19 @@ for (int k = 0; k < numIterations; ++k) {
 \end{figure}
 \section*{Task 3: Mesh Simplification}
 \paragraph{实现方法}
-按照下面的步骤进行.\\
+按照下面的步骤进行.由于计算精度要求比较高,在程序中统一使用\code{double}类型的矩阵和向量进行运算.\\
 \indent 首先计算面$f$的误差矩阵$\mat{K}_p$.文献中给出的定义为:对于给定的面$f$,其平面方程为$ax+by+cz+d=0$,即向量$\vec{p}=\begin{pmatrix}
     a&b&c&d
 \end{pmatrix}^{\text{t}}$, $f$的代价矩阵$\mat{K}_p$定义为$\vec{p}$的外积.\\
 \indent 注意到上述平面的法向量$\vec{n}$恰为$(a,b,c)$(注意单位化),这可以由三角形两边$\vec{e}_1$和$\vec{e}_2$的叉积得到.而$d$可以由点法式平面方程$d=-\vec{n}\cdot\vec{v}$得到,其中$\vec{v}$为三角形的一个顶点.用{\codefont glm}库中的各种向量运算功能即可完成上述过程,代码如下:
 \begin{lstlisting}[language=C++]
 auto UpdateQ {
-    [&G, &output](DCEL::Triangle const * f) -> glm::mat4 {
+    [&G, &output](DCEL::Triangle const * f) -> glm::dmat4 {
         // your code here:
-        glm::vec3 v0 = output.Positions[f->VertexIndex(0)], v1 = output.Positions[f->VertexIndex(1)], v2 = output.Positions[f->VertexIndex(2)];
-        glm::vec3 e1 = v1 - v0, e2 = v2 - v0;
-        glm::vec3 n = glm::normalize(glm::cross(e1, e2));
-        glm::vec4 p = { n.x, n.y, n.z, -glm::dot(n, v0) };
+        glm::dvec3 v0 = output.Positions[f->VertexIndex(0)], v1 = output.Positions[f->VertexIndex(1)], v2 = output.Positions[f->VertexIndex(2)];
+        glm::dvec3 e1 = v1 - v0, e2 = v2 - v0;
+        glm::dvec3 n = glm::normalize(glm::cross(e1, e2));
+        glm::dvec4 p = { n.x, n.y, n.z, -glm::dot(n, v0) };
         return glm::outerProduct(p, p);
     }
 };
@@ -218,17 +218,17 @@ auto UpdateQ {
 \begin{lstlisting}[language=C++]
 static constexpr auto MakePair {
     [](DCEL::HalfEdge const * edge,
-       glm::vec3 const &      p1,
-       glm::vec3 const &      p2,
-       glm::mat4 const &      Q) -> ContractionPair {
+       glm::dvec3 const &     p1,
+       glm::dvec3 const &     p2,
+       glm::dmat4 const &     Q) -> ContractionPair {
         // your code here:
         ContractionPair result {};
         result.edge = edge;
-        glm::mat4 q = Q;
+        glm::dmat4 q = Q;
         q[0][3] = 0; q[1][3] = 0; q[2][3] = 0; q[3][3] = 1;
-        if (glm::determinant(q) >= 0.001f || glm::determinant(q) <= -0.001f) {
-            result.targetPosition = glm::inverse(q) * (glm::vec4 { 0, 0, 0, 1 });
-        } else { result.targetPosition = { 0.5f * (p1 + p2), 1.0f }; }
+        if (glm::determinant(q) >= 0.001 || glm::determinant(q) <= -0.001) {
+            result.targetPosition = glm::inverse(q) * (glm::dvec4 { 0, 0, 0, 1 });
+        } else { result.targetPosition = { 0.5 * (p1 + p2), 1.0 }; }
         result.cost = glm::dot(result.targetPosition, Q * result.targetPosition);
         return result;
     }
@@ -474,9 +474,6 @@ for (int k = 0; k < 5; ++k) {
 \end{figure}
 \begin{figure}[H]
     \centering
-    \subfigure[网格尺寸$n=10$]{
-        \includegraphics[scale=0.08]{figure/Cube-Torus-10.png}
-    }\qquad\qquad
     \subfigure[网格尺寸$n=40$]{
         \includegraphics[scale=0.08]{figure/Cube-Torus-40.png}
     }\qquad\qquad
