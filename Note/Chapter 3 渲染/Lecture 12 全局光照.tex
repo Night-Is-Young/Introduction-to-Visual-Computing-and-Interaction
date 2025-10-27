@@ -1,0 +1,61 @@
+\documentclass{ctexart}
+\usepackage{Note}
+\begin{document}
+\section{全局光照}
+光照是渲染的基础.为了理解渲染的过程,我们需要理解光在环境中的传输过程.
+\subsection{渲染方程}
+\subsubsection{辐射度量学}
+为了描述光的传输过程,我们需要引入一些\tbf{辐射度量学(Radiometry)}的概念.
+\paragraph{基本假设}
+首先,我们在渲染时总是假设几何光学成立,这导致了对光有如下基本假设:
+\begin{theorem}[光的基本假设]
+    \begin{enumerate}[label=\tbf{\arabic*.}]
+        \item \tbf{线性}:光的传输是线性的,即多束光的叠加等于各束光的单独传输之和.
+        \item \tbf{能量守恒}:光经过散射后,散射光的能量不大于入射光的能量.
+        \item \tbf{无偏振}:忽略光的偏振效应.
+        \item \tbf{稳态}:环境中光的分布不随时间变化.
+    \end{enumerate}
+\end{theorem}
+\paragraph{基本物理量}
+在辐射度量学中,我们主要关心以下物理量:通量,辐照度,强度和辐射率.需要注意的是这些度量都依赖于波长,但在本章的讨论中我们通常不表明这一依赖关系.
+\begin{definition}[通量]
+    \tbf{通量(Flux)}$\Phi$表示单位时间内通过某一给定面的光的能量,即
+    \[\Phi=\dfrac{\di Q}{\di t}\]
+\end{definition}
+光源的总发射常用通量表示,因为从上述定义可以看出通量与我们选取的截面无关.
+\begin{definition}[辐照度与辐射出射度]
+    \tbf{辐照度(Irradiance)}$E$表示单位面积上接收到的通量,\tbf{辐射出射度(Radiant Exitance)}$M$表示单位面积上发出的通量.对于空间中给定面上的一点$\vec{p}$,其辐照度可以通过微分定义如下:
+    \[E(\vec{p})=\dfrac{\di \Phi(\vec{p})}{\di A}\]
+\end{definition}
+\begin{definition}[强度]
+    \tbf{强度(Intensity)}$I$表示单位立体角上发射的通量.点光源在某一特定方向$\bs\omega$上的通量$I$可以通过微分定义如下:
+    \[I(\bs\omega)=\dfrac{\di \Phi(\bs\omega)}{\di\bs\omega}\]
+\end{definition}
+强度描述了光的方向分布,但仅对点光源有意义.
+\begin{definition}[辐射率]
+    \tbf{辐射率(Radiance)}$L$相比辐照度考虑了光在不同方向上的分布.空间中某一点$\vec{p}$在方向$\bs\omega$上的辐射率可以定义如下:
+    \[L(\vec{p},\bs\omega)=\dfrac{\di E_{\bs\omega}(\vec{p})}{\di\bs\omega}=\dfrac{\di^2\Phi(\vec{p},\bs\omega)}{\di A^\bot\di\bs\omega}\]
+    其中$\di A^\bot=\di A\cos\theta$表示垂直于$\bs\omega$的面积元.\\
+    也即,给定点$\vec{p}$处的指定方向$\bs\omega$上的辐射率$L(\vec{p},\bs\omega)$表示$\bs\omega$上单位立体角和垂直$\bs\omega$上单位面积上的通量.
+\end{definition}
+在所有这些辐射度量中,辐射率将在本章中最频繁地使用.某种意义上它是所有辐射度量中最基本的,如果给定了辐射率,那么所有其他值都可以通过对辐射率在区域和方向上的积分来计算.\\
+\indent 辐射率的另一个良好属性是在通过空间中的射线上保持不变.这意味着我们只需考虑$L(\vec{p},\bs\omega)$在物体表面上的取值,而不必考虑光在空间中传播的过程.\\
+\indent 在上述所有物理量中,比较重要的是辐射率$L$与辐照度$E$的关系.对于给定面上的一点$\vec{p}$以及此处的法向量$\vec{n}$,入射到该点的辐照度$E(\vec{p})$可以通过该点在各个方向上的辐射率积分得到:
+\[E(\vec{p})=\int_{\Omega}L_i(\vec{p},\bs\omega_i)\cos\theta_i\di\bs\omega_i\]
+其中$\Omega$表示以$\vec{p}$为顶点的半空间,通常选择法向量$\vec{n}$对应的半球,记作$H^2(\vec{n})$. $\theta_i$表示入射方向$\bs\omega_i$与法向量$\vec{n}$之间的夹角.
+\subsubsection{反射模型}
+当光线入射到表面时,表面会散射光线,将部分光线反射回环境中.建立这种反射模型需要描述两种主要效应:反射光的光谱分布和方向分布.
+\paragraph{双向反射分布函数BRDF}
+为了描述表面对光的反射特性,我们引入\tbf{双向反射分布函数(Bidirectional Reflectance Distribution Function, BRDF)}.BRDF描述了入射光线和出射光线之间的关系.
+\begin{definition}[双向反射分布函数]
+    给定表面上某一点$\vec{p}$,入射方向$\bs\omega_i$和出射方向$\bs\omega_o$,BRDF定义为:
+    \[f_r(\vec{p},\bs\omega_i,\bs\omega_o)=\dfrac{\di L_o(\vec{p},\bs\omega_o)}{L_i(\vec{p},\bs\omega_i)\cos\theta_i\di\bs\omega_i}\]
+    其中$\theta_i$是入射方向与表面法线之间的夹角.
+\end{definition}
+\subsection{光线投射与光线追踪}
+\subsubsection{光线投射}
+大部分环境中的光都不能被镜头所捕捉,因此相比于考虑每个光源发出的每条光线,我们不妨采取逆向思维,考虑那些最终到达镜头的光线.由于光路是可逆的,因此我们从镜头向屏幕上的点连一条线,该射线在场景中击中的第一个物体将决定该点的颜色.
+\begin{definition}[光线透射]
+    光线投射
+\end{definition}
+\end{document}
