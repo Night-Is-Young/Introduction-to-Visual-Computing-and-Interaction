@@ -167,11 +167,11 @@ Delaunay三角剖分是Voronoi图的对偶图.Voronoi图的每个顶点对应Del
 其中已经带入了$\chi_M$的定义.以下为了方便考虑,重新定义$\chi_M=\chi_M\circ\tilde{F}$.通过散度定理可以证明:
 \[\nabla\chi_M(\vec{v})=\int_{\p M}\tilde{F}_{\vec{v}}(\vec{u})\vec{n}_{\vec{u}}\di\vec{u}\]
 其中$\vec{n}_{\vec{u}}$是$\p M$在点$\vec{u}$处的内法向量\footnote{这里取法向量的方法与一般的习惯不同,需要加以注意.}.\\
-\indent 现在,我们需要将连续的梯度场$\nabla\chi_M$与离散的,带法向量的点云$S$联系起来.首先,需要根据带法向量的点云$S$重建一个向量场$\vec{V}$用于之后的最小化运算.根据$S$中的点$\vec{v}_i$将曲面划分为不相交的局部区域$\mathscr{P}_i$,于是对于空间中任意一点$\vec{v}$有
-\[\nabla\chi_M(\vec{v})=\sum_{\vec{v}_i\in S}\int_{\mathscr{P}_i}\tilde{F}_{\vec{v}}(\vec{u})\vec{n}_{\vec{u}}\di\vec{u}\]
-在每个$\mathscr{P}_i$内,我们近似地用$\vec{v}_i$代替式中的$\vec{u}$,从而得到
-\[\nabla\chi_M(\vec{v})\approx\sum_{\vec{v}_i\in S}\int_{\mathscr{P}_i}\tilde{F}_{\vec{v}}\left(\vec{v}_i\right)\vec{n}_{i}\di\vec{v}_i=\sum_{\vec{v}_i\in S}\tilde{F}_{\vec{v}}\left(\vec{v}_i\right)\vec{n}_{i}\int_{\mathscr{P}_i}\di\vec{v}_i=\sum_{\vec{v}_i\in S}\tilde{F}_{\vec{v}}\left(\vec{v}_i\right)\vec{n}_{i}\left|\mathscr{P}_i\right|\xlongequal{\text{定义为}}\vec{V}(\vec{v})\]
-其中$\left|\mathscr{P}_i\right|$为该邻域的面积.于是重建的向量场$\vec{V}(\vec{v})$可以通过点云加权平均得到.\\
+\indent 现在,我们需要将连续的梯度场$\nabla\chi_M$与离散的,带法向量的点云$S$联系起来.首先,需要根据带法向量的点云$S$重建一个向量场$\vec{V}$用于之后的最小化运算.根据$S$中的点$\vec{v}_i$将曲面划分为不相交的局部区域$\mathcal{P}_i$,于是对于空间中任意一点$\vec{v}$有
+\[\nabla\chi_M(\vec{v})=\sum_{\vec{v}_i\in S}\int_{\mathcal{P}_i}\tilde{F}_{\vec{v}}(\vec{u})\vec{n}_{\vec{u}}\di\vec{u}\]
+在每个$\mathcal{P}_i$内,我们近似地用$\vec{v}_i$代替式中的$\vec{u}$,从而得到
+\[\nabla\chi_M(\vec{v})\approx\sum_{\vec{v}_i\in S}\int_{\mathcal{P}_i}\tilde{F}_{\vec{v}}\left(\vec{v}_i\right)\vec{n}_{i}\di\vec{v}_i=\sum_{\vec{v}_i\in S}\tilde{F}_{\vec{v}}\left(\vec{v}_i\right)\vec{n}_{i}\int_{\mathcal{P}_i}\di\vec{v}_i=\sum_{\vec{v}_i\in S}\tilde{F}_{\vec{v}}\left(\vec{v}_i\right)\vec{n}_{i}\left|\mathcal{P}_i\right|\xlongequal{\text{定义为}}\vec{V}(\vec{v})\]
+其中$\left|\mathcal{P}_i\right|$为该邻域的面积.于是重建的向量场$\vec{V}(\vec{v})$可以通过点云加权平均得到.\\
 \indent 现在的目标是根据重建的向量场$\vec{V}$来求解指示函数$\chi_M$.根据上式,我们需要解如下的梯度场方程:
 \[\nabla\chi_M=\vec{V}\]
 由于右侧的$\vec{V}$不一定可积,因此可能无法找到方程的精确解.于是我们转而求解下面的最小化问题:

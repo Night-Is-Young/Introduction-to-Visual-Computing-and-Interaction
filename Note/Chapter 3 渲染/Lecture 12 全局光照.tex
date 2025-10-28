@@ -31,7 +31,6 @@
     \tbf{强度(Intensity)}$I$表示单位立体角上发射的通量.点光源在某一特定方向$\bs\omega$上的通量$I$可以通过微分定义如下:
     \[I(\bs\omega)=\dfrac{\di \Phi(\bs\omega)}{\di\bs\omega}\]
 \end{definition}
-强度描述了光的方向分布,但仅对点光源有意义.
 \begin{definition}[辐射率]
     \tbf{辐射率(Radiance)}$L$相比辐照度考虑了光在不同方向上的分布.空间中某一点$\vec{p}$在方向$\bs\omega$上的辐射率可以定义如下:
     \[L(\vec{p},\bs\omega)=\dfrac{\di E_{\bs\omega}(\vec{p})}{\di\bs\omega}=\dfrac{\di^2\Phi(\vec{p},\bs\omega)}{\di A^\bot\di\bs\omega}\]
@@ -40,13 +39,13 @@
 \end{definition}
 在所有这些辐射度量中,辐射率将在本章中最频繁地使用.某种意义上它是所有辐射度量中最基本的,如果给定了辐射率,那么所有其他值都可以通过对辐射率在区域和方向上的积分来计算.\\
 \indent 辐射率的另一个良好属性是在通过空间中的射线上保持不变.这意味着我们只需考虑$L(\vec{p},\bs\omega)$在物体表面上的取值,而不必考虑光在空间中传播的过程.\\
-\indent 在上述所有物理量中,比较重要的是辐射率$L$与辐照度$E$的关系.对于给定面上的一点$\vec{p}$以及此处的法向量$\vec{n}$,入射到该点的辐照度$E(\vec{p})$可以通过该点在各个方向上的辐射率积分得到:
+\indent 在上述所有物理量中,比较重要的是辐射率$L$与辐照度$E$的关系.对于给定面上的一点$\vec{p}$以及此处的法向量$\vec{n}$,入射到该点的辐照度$E(\vec{p})$可以通过该点在各个方向上的辐射率积分得到(这里的下标$i$表示入射光,以后的$o$表示出射光):
 \[E(\vec{p})=\int_{\Omega}L_i(\vec{p},\bs\omega_i)\cos\theta_i\di\bs\omega_i\]
 其中$\Omega$表示以$\vec{p}$为顶点的半空间,通常选择法向量$\vec{n}$对应的半球,记作$H^2(\vec{n})$. $\theta_i$表示入射方向$\bs\omega_i$与法向量$\vec{n}$之间的夹角.
 \subsubsection{反射模型}
 当光线入射到表面时,表面会散射光线,将部分光线反射回环境中.建立这种反射模型需要描述两种主要效应:反射光的光谱分布和方向分布.
 \paragraph{双向反射分布函数BRDF}
-为了描述表面对光的反射特性,我们引入\tbf{双向反射分布函数(Bidirectional Reflectance Distribution Function, BRDF)}.BRDF描述了入射光线和出射光线之间的关系.
+为了描述表面对光的反射特性,我们引入\tbf{双向反射分布函数(Bidirectional Reflectance Distribution Function, BRDF)}. BRDF描述了入射光线和出射光线之间的关系,具体而言是对于物体表面上的一点$\vec{p}$,我们希望知道沿$\bs\omega_i$方向入射光的辐照度$E_i(\vec{p})$在沿$\bs\omega_o$方向上造成的出射光的辐射率$L_o(\vec{p},\bs\omega_o)$.
 \begin{definition}[双向反射分布函数]
     给定表面上某一点$\vec{p}$,入射方向$\bs\omega_i$和出射方向$\bs\omega_o$,BRDF定义为:
     \[f_r(\vec{p},\bs\omega_i,\bs\omega_o)=\dfrac{\di L_o(\vec{p},\bs\omega_o)}{L_i(\vec{p},\bs\omega_i)\cos\theta_i\di\bs\omega_i}\]
