@@ -25,13 +25,35 @@
     \tbf{朗博体(Lambertian Surface)}是表面只有完全随机的漫反射的物体.
 \end{definition}
 对于朗博体的漫反射而言,我们有如下简单的公式以计算其反射的光强:
-\[L_d=k_d\left(I_a+I_d\max(\cos\theta,0)+\dfrac{I_p}{r^2}\cos\theta\right)\]
+\[L_d=k_aI_a+k_d\left(I_d+\dfrac{I_p}{r^2}\right)\max(\cos\theta,0)\]
+其中$L_d$表示漫反射后的光强(下标$d$意为diffuse,表示漫反射), $k_a$和$k_d$分别是物体对环境光的反射率和物体表面的漫反射率.简单而言\footnote{物体表面的颜色也会影响对各种波长的光的反射率,不过也可以逐颜色分量地应用上述公式,因此通常使用的$k$包含RGB三个分量.此时,如果光源的RGB分量表示为向量$\vec{I}$,反射率表示为向量$\vec{k}$,那么最终的反射光颜色可以表示为\[\vec{I}\circ\vec{k}\]其中$\circ$表示向量逐分量相乘.因此,上述公式在各个颜色分量不同时可以写成\[\vec{L}_d=\vec{k}_a\circ\vec{I}_a+\vec{k}_d\circ\left(\vec{I}_d+\dfrac{\vec{I}_p}{r^2}\right)\max(\cos\theta,0)\]在下面的镜面反射的公式中也类似.}, $k_a$和$k_d$越小,物体表面吸收的光越多, 反射光强$L_d$也越小,物体就越暗;反之物体就越亮. $I_a,I_d$和$I_p$分别表示环境光,平行光和点光源强度, $r$表示点光源到物体的距离.\\
+\indent 上述式子中的角度$\theta$表示物体指向光源的单位向量$\vec{l}$和物体表面的单位法向量$\vec{n}$的夹角,因此式子中的$\cos\theta$可以替换为$\vec{l}\cdot\vec{n}$.注意,当$\theta>\pi/2$时,光线入射到物体的背面,此时物体并不接受光照,因此我们取$\max(\cos\theta,0)$以舍弃此种情形.
 \paragraph{镜面反射}
 当物体表面光滑时,入射到表面的光线会按照一定的规律被反射,称为\tbf{镜面反射(Specular Reflection)}.
 \begin{definition}[镜面反射]
     \tbf{镜面反射(Specular Reflection)}是指入射光线按照反射定律被反射的现象.
 \end{definition}
-一般而言,由于物体表面并不能完全光滑,镜面反射并不总是完全符合反射定律,而是分布于理想反射光线$\vec{r}$附近.
+一般而言,由于物体表面并不能完全光滑,镜面反射并不总是完全符合反射定律,而是分布于镜面反射光线$\vec{r}$附近.如果物体表面指向观察者的方向为$\vec{v}$,那么应当有$\vec{v}$与$\vec{r}$的夹角越小,反射光强越大.这样,我们可以写出镜面反射的光强计算公式:
+\[L_s=k_s\left(I_d+\dfrac{I_p}{r^2}\right)\max(\vec{v}\cdot\vec{r},0)^\alpha\]
+其中$L_s$表示镜面反射后的光强(下标$s$意为specular,表示镜面反射), $k_s$是物体表面的镜面反射率. $\alpha$是镜面反射指数, $\alpha$越大,视线远离镜面反射方向时光强衰减地越快,高光区域越集中,反之则越分散.理想镜面反射光线$\vec{r}$可由
+\[\vec{r}=2\left(\vec{l}\cdot\vec{n}\right)\vec{n}-\vec{l}\]
+给出.\\
+\indent 除去这种办法之外,人们提出了一种巧妙的计算方法:定义半程向量
+\[\vec{h}=\dfrac{\vec{l}+\vec{v}}{\left|\left|\vec{l}+\vec{v}\right|\right|}\]
+表示光源方向$\vec{l}$与观察方向$\vec{v}$的角平分线方向.观察方向$\vec{v}$越接近$\vec{r}$,半程向量$\vec{h}$就越接近法线$\vec{n}$,因此可以将上式改写为
+\[L_s=k_s\left(I_d+\dfrac{I_p}{r^2}\right)\max(\vec{n}\cdot\vec{h},0)^\beta\]
+其中$\beta$也是镜面反射指数.
+\paragraph{Phong光照模型和Blinn-Phong光照模型}
+把前述的漫反射和镜面反射结合起来,我们就得到了常用的光照模型.
+\begin{definition}[Phong光照模型]
+    \tbf{Phong光照模型(Phong Reflection Model)}结合了漫反射和镜面反射,其光强计算公式为:
+    \[L=k_aI_a+k_d\left(I_d+\dfrac{I_p}{r^2}\right)\max(\vec{l}\cdot\vec{n},0)+k_s\left(I_d+\dfrac{I_p}{r^2}\right)\max(\vec{v}\cdot\vec{r},0)^\alpha\]
+\end{definition}
+\begin{definition}[Blinn-Phong光照模型]
+    \tbf{Blinn-Phong光照模型(Blinn-Phong Reflection Model)}是Phong光照模型的变种,其光强计算公式为:
+    \[L=k_aI_a+k_d\left(I_d+\dfrac{I_p}{r^2}\right)\max(\vec{l}\cdot\vec{n},0)+k_s\left(I_d+\dfrac{I_p}{r^2}\right)\max(\vec{n}\cdot\vec{h},0)^\beta\]
+\end{definition}
+可以看出,两者的区别仅在于镜面反射部分. Blinn-Phong模型使用了半程向量$\vec{h}$,这在高光表现的效果上更平滑自然,因而更多地被使用.
 \subsection{渲染的光栅化}
 与二维图形一样,我们可以通过\tbf{光栅化}将虚拟的几何与材质转化为像素.这主要包含两个问题:确定像素对应的三维位置(也即正确处理遮挡关系),以及确定该像素的颜色.
 \subsubsection{深度缓存}
@@ -86,6 +108,6 @@ Gouraud着色在曲面的大部分区域里都可以得到光滑的颜色过渡,
 \begin{definition}[Gooch着色]
     取定冷色$k_{c}$和暖色$k_w$,物体上各点的颜色通过插值得到:
     \[k=\left(\dfrac{1+\vec{l}\cdot\vec{n}}{2}\right)k_c+\left(\dfrac{1-\vec{l}\cdot\vec{n}}{2}\right)k_w\]
-    其中$\vec{l}$是物体上的点指向光源的方向, $\vec{n}$是该点表面发现的方向.
+    其中$\vec{l}$是物体上的点指向光源的方向, $\vec{n}$是该点表面法线的方向.
 \end{definition}
 \end{document}
