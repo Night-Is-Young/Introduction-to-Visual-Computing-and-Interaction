@@ -63,4 +63,39 @@
         \item \textit{输出}:显示设备上呈现的最终图像.
     \end{itemize}
 \end{enumerate}
+\subsection{图形API}
+为了实现对图形管线的控制和使用,现代计算机图形学中引入了\tbf{图形API(Graphic API)}的概念.
+\begin{definition}[图形API]
+    \tbf{图形API}是指应用程序与图形硬件之间的抽象接口,它通过一组函数或指令集,使开发者能够控制GPU执行图形渲染,计算和资源管理等操作,而无需直接编写底层驱动代码.\\
+    常见图形API包括OpenGL, Vulkan, DirectX, Metal等.
+\end{definition}
+上面介绍的渲染管线仅为通用的大致结构,各个图形API对管线的具体实现过程是不同的.以OpenGL为例,其渲染管线如下所示.
+\begin{figure}[H]\centering
+\begin{tikzpicture}[
+    node distance=0.5cm,
+    box/.style={rectangle, minimum width=6cm, minimum height=1cm, text centered, draw=black, top color=yellow!30, bottom color=yellow!70},
+    optbox/.style={rectangle, minimum width=6cm, minimum height=1cm, text centered, draw=black, dashed, top color=blue!20, bottom color=blue!40},
+    arrow/.style={-latex, thick}
+]
+    \node (vspec) [box] {顶点指定 Vertex Specification};
+    \node (vshader) [optbox, below=of vspec, solid] {顶点着色 Vertex Shader};
+    \node (tess) [optbox, below=of vshader] {曲面细分 Tessellation};
+    \node (gshader) [optbox, below=of tess] {几何着色 Geometry Shader};
+    \node (vpost) [box, below=of gshader] {顶点后处理 Vertex Post-Processing};
+    \node (passem) [box, below=of vpost] {图元装配 Primitive Assembly};
+    \node (raster) [box, below=of passem] {光栅化 Rasterization};
+    \node (fshader) [optbox, below=of raster] {片段着色 Fragment Shader};
+    \node (psample) [box, below=of fshader] {逐样本操作 Per-Sample Operations};
+    \draw [arrow] (vspec) -- (vshader);
+    \draw [arrow] (vshader) -- (tess);
+    \draw [arrow] (tess) -- (gshader);
+    \draw [arrow] (gshader) -- (vpost);
+    \draw [arrow] (vpost) -- (passem);
+    \draw [arrow] (passem) -- (raster);
+    \draw [arrow] (raster) -- (fshader);
+    \draw [arrow] (fshader) -- (psample);
+\end{tikzpicture}
+\caption{OpenGL渲染管线示意图}
+\end{figure}
+上述流程图中仅有标蓝色框的部分是可编程的,其余步骤均在硬件驱动中实现,仅能通过一些选项调整参数.大部分情况下需要手动编写的仅有\tbf{顶点着色器}.
 \end{document}
