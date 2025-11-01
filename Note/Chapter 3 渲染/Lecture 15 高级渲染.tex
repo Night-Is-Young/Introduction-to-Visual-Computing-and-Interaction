@@ -1,0 +1,129 @@
+\documentclass{ctexart}
+\usepackage{Note}
+\begin{document}
+\section{高级渲染}
+我们需要用更精确的模型描述和模拟光在环境中的传输过程.
+\subsection{辐射度量学}
+为了描述光的传输过程,我们需要引入一些\tbf{辐射度量学(Radiometry)}的概念.辐射度量学提供了一系列思想和数学工具,来描述光的传播和反射.它构成了推导本章余下部分将使用的渲染算法的基础.
+\subsubsection{基本假设}
+首先,我们在渲染时总是假设几何光学成立,因此有如下基本假设:
+\begin{theorem}[光的基本假设]
+    \begin{enumerate}[label=\tbf{\arabic*.}]
+        \item \tbf{线性}:光的传输是线性的,即多束光的叠加等于各束光的单独传输之和.
+        \item \tbf{能量守恒}:光经过散射后,散射光的能量不大于入射光的能量.
+        \item \tbf{无偏振}:忽略光的偏振效应.
+        \item \tbf{稳态}:环境中光的分布不随时间变化.
+    \end{enumerate}
+\end{theorem}
+\subsubsection{基本物理量}
+在辐射度量学中,我们主要关心以下物理量:通量,辐照度,强度和辐射率.需要注意的是这些度量都依赖于波长,但在本章的讨论中我们通常不表明这一依赖关系.
+\begin{definition}[通量]
+    \tbf{通量(Flux)}$\Phi$表示单位时间内通过某一给定面的光的能量,即
+    \[\Phi=\dfrac{\di Q}{\di t}\]
+\end{definition}
+光源的总发射常用通量表示,因为从上述定义可以看出通量与我们选取的截面无关.
+\begin{definition}[辐照度与辐射出射度]
+    \tbf{辐照度(Irradiance)}$E$表示单位面积上接收到的通量,\tbf{辐射出射度(Radiant Exitance)}$M$表示单位面积上发出的通量.对于空间中给定表面上的一点$\vec{p}$,其辐照度可以通过微分定义如下:
+    \[E(\vec{p})=\dfrac{\di \Phi(\vec{p})}{\di A}\]
+\end{definition}
+需要注意的是,辐照度(包括辐射出射度)都是基于表面定义的,因此一般我们都只在物体的表面考虑辐照度.如果是空间中的某一点,那么一般需要额外确定所取的面积元的方向(即确定一个虚平面).
+\begin{definition}[辐射率]
+    \tbf{辐射率(Radiance)}$L$相比辐照度考虑了光在不同方向上的分布.给定平面上某一点$\vec{p}$在方向$\bs\omega$上的辐射率可以定义如下:
+    \[L(\vec{p},\bs\omega)=\dfrac{\di^2\Phi(\vec{p},\bs\omega)}{\di A^\bot\di\bs\omega}\]
+    其中$\di A^\bot=\di A\cos\theta$表示垂直于$\bs\omega$的面积元,这里$\theta$为$\bs\omega$与平面在$\vec{p}$处的法向量$\vec{n}$的夹角.\\
+    也即,给定点$\vec{p}$处的指定方向$\bs\omega$上的辐射率$L(\vec{p},\bs\omega)$表示$\bs\omega$上单位立体角和垂直$\bs\omega$上单位面积上的通量.
+\end{definition}
+在所有这些辐射度量中,辐射率将在本章中最频繁地使用.某种意义上它是所有辐射度量中最基本的,如果给定了辐射率,那么所有其他值都可以通过对辐射率在区域和方向上的积分来计算.\\
+\indent 辐射率的另一个良好属性是在通过空间中的射线上保持不变.这意味着我们只需考虑$L(\vec{p},\bs\omega)$在物体表面上的取值,而不必考虑光在空间中传播的过程.\\
+\indent 在上述所有物理量中,比较重要的是辐射率$L$与辐照度$E$的关系.对于给定面上的一点$\vec{p}$以及此处的法向量$\vec{n}$,入射到该点的辐照度$E(\vec{p})$可以通过该点在各个方向上的辐射率积分得到(这里的下标$i$表示入射光,以后的下标$o$表示出射光):
+\[E(\vec{p})=\int_{\Omega}\di E_{\bs\omega}(\vec{p})=\int_{\Omega}L_i(\vec{p},\bs\omega_i)\cos\theta_i\di\bs\omega_i\]
+其中$\Omega$表示以$\vec{p}$为顶点的半空间\footnote{如果$\bs\omega$与法向量$\vec{n}$的夹角大于$\pi/2$,这意味着这部分光线会被遮挡,因此不用考虑.},通常选择法向量$\vec{n}$对应的半球,记作$H^2(\vec{n})$. $\theta_i$表示入射方向$\bs\omega_i$与法向量$\vec{n}$之间的夹角.
+\subsection{反射与折射模型}
+当光线入射到表面时,表面会散射光线,将部分光线反射回环境中,部分光线则射入物体中(如果物体是半透明的).建立这种模型需要描述两种主要效应:反射/折射光的光谱分布和方向分布.
+\subsubsection{双向反射分布函数BRDF}
+为了描述表面对光的反射特性,我们引入\tbf{双向反射分布函数(Bidirectional Reflectance Distribution Function, BRDF)}. BRDF描述了入射光线和出射光线之间的关系.具体而言,对于物体表面上的一点$\vec{p}$,我们希望知道沿$\bs\omega_i$方向入射光的辐照度$E_{\bs\omega_i}(\vec{p})$在沿$\bs\omega_o$方向上造成的出射光的辐射率$L_o(\vec{p},\bs\omega_o)$.\\
+\indent 根据几何光学的线性假设,在$\bs\omega_o$方向上出射光的辐照率,应当等于各入射光造成$\bs\omega_o$方向上反射光的总和;此外,增强入射光的辐照度$E_{\bs\omega_i}(\vec{p})$,也应当线性地增强出射光的辐射率.我们把上述关系表示为积分形式:
+\[L_o(\vec{p},\bs\omega_o)=\int_{\Omega}k\di E_{\bs\omega_i}(\vec{p})=\int_{\Omega}kL_i(\vec{p},\bs\omega_i)\cos\theta_i\di\bs\omega_i\]
+于是
+\[\di L_o(\vec{p},\bs\omega_o)=kL_i(\vec{p},\bs\omega_i)\cos\theta_i\di\bs\omega_i\]
+根据这一关系,我们可以定义BRDF如下:
+\begin{definition}[双向反射分布函数]
+    给定物体表面上某一点$\vec{p}$,入射方向$\bs\omega_i$和出射方向$\bs\omega_o$,BRDF定义为:
+    \[f_r(\vec{p},\bs\omega_i,\bs\omega_o)=\dfrac{\di L_o(\vec{p},\bs\omega_o)}{L_i(\vec{p},\bs\omega_i)\cos\theta_i\di\bs\omega_i}\]
+    其中$\theta_i$是入射方向与表面法线之间的夹角.
+\end{definition}
+基于物理的BRDF有两个重要性质:
+\begin{theorem}[BRDF的性质]
+    \begin{enumerate}
+        \item \tbf{Helmholtz可逆性}:BRDF在入射和出射方向上是对称的,即
+        \[f_r(\vec{p},\bs\omega_i,\bs\omega_o)=f_r(\vec{p},\bs\omega_o,\bs\omega_i)\]
+        \item \tbf{能量守恒}:对于任意入射方向$\bs\omega_i$,出射光的总能量不大于入射光的能量,即
+        \[\forall \bs\omega_i,\quad\int_{\Omega}f_r(\vec{p},\bs\omega_i,\bs\omega_o)\cos\theta_o\di\bs\omega_o\leq 1\]
+    \end{enumerate}
+\end{theorem}
+\subsubsection{双向透射分布函数BTDF}
+描述透射光分布的\tbf{表面双向透射分布函数(Bidirectional Transmittance Distribution Function, BTDF)}与BRDF类似,其定义为:
+\[f_t(\vec{p},\bs\omega_i,\bs\omega_o)=\dfrac{\di L_o(\vec{p},\bs\omega_o)}{L_i(\vec{p},\bs\omega_i)\cos\theta_i\di\bs\omega_i}\]
+其中各符号的定义相同,但入射光和出射光的方向分居表面两侧.\\
+\indent 需要注意的是, BTDF并不满足Helmholtz可逆性.可以证明,如果入射光和出射光的介质的折射率分别为$\eta_i$和$\eta_o$,那么BTDF函数满足如下关系:
+\[\eta_i^2f_t\left(\vec{p},\bs\omega_i,\bs\omega_o\right)=\eta_o^2f_t\left(\vec{p},\bs\omega_o,\bs\omega_i\right)\]
+\subsubsection{双向散射分布函数BSDF}
+为了方便起见,我们把BRDF和BTDF合并为一个统一的函数,称为\tbf{双向散射分布函数(Bidirectional Scattering Distribution Function, BSDF)}. BSDF定义为:
+\[f(\vec{p},\bs\omega_i,\bs\omega_o)=\begin{cases}
+    f_r(\vec{p},\bs\omega_i,\bs\omega_o),&\text{如果}\bs\omega_i,\bs\omega_o\text{在表面同侧}\\
+    f_t(\vec{p},\bs\omega_i,\bs\omega_o),&\text{如果}\bs\omega_i,\bs\omega_o\text{在表面异侧}
+\end{cases}\]
+这样,在$\vec{p}$沿$\bs\omega_o$出射光的辐射率就可以表示为
+\[L_o(\vec{p},\bs\omega_o)=\int_{S^2}f(\vec{p},\bs\omega_i,\bs\omega_o)L_i(\vec{p},\bs\omega_i)\left|\cos\theta_i\right|\di\bs\omega_i\]
+这里的积分区域$S^2$为$\vec{p}$为球心的球面.这是综合考虑同面的反射光和异面的透射光后的结果.
+\subsubsection{双向散射表面反射率分布函数BSSRDF}
+在更复杂的情形下,光线入射到表面后,可能会在物体内部传播一段距离后,再从物体的另一个位置出射.为了描述这种现象,我们引入\tbf{双向散射表面反射率分布函数(Bidirectional Surface Scattering Reflectance Distribution Function, BSSRDF)}. BSSRDF定义为:
+\[S(\vec{p}_i,\bs\omega_i,\vec{p}_o,\bs\omega_o)=\dfrac{\di L_o(\vec{p}_o,\bs\omega_o)}{\di\Phi(\vec{p}_i,\bs\omega_i)}=\dfrac{\di L_o(\vec{p}_o,\bs\omega_o)}{L_i(\vec{p}_i,\bs\omega_i)\cos\theta_i\di\bs\omega_i\di A_i}\]
+于是,计算出射光的方程由二重积分变成了四重积分:
+\[L_o(\vec{p},\bs\omega_o)=\int_A\int_{H^2(\vec{n})}S(\vec{p}_i,\bs\omega_i,\vec{p}_o,\bs\omega_o)L_i(\vec{p}_i,\bs\omega_i)\cos\theta_i\di\bs\omega_i\di A_i\]
+其中$A$是$\vec{p}_o$的邻域(一般而言$S$随着$\vec{p}_i$与$\vec{p}_o$的远离而减小,因此只要考虑其附近的一个区域即可).\\
+\indent 由于积分维度升高, BSSRDF的计算量也大大增加.因此在实际应用中,我们通常只在需要考虑次表面散射的情况下使用BSSRDF,否则都使用BSDF.
+\subsection{渲染方程}
+\subsubsection{渲染方程的基本形式}
+我们已经通过辐射度量学对反射/折射光的物理描述.现在再考虑物体本身的发光项$L_e(\vec{p},\bs\omega_o)$,我们就得到了下述方程:
+\[L_o(\vec{p},\bs\omega_o)=L_e(\vec{p},\bs\omega_o)+\int_{S^2}f(\vec{p},\bs\omega_i,\bs\omega_o)L_i(\vec{p},\bs\omega_i)\left|\cos\theta_i\right|\di\bs\omega_i\]
+\begin{definition}[渲染方程]
+    上述方程称为\tbf{渲染方程(Rendering Equation)}.
+\end{definition}
+在空间中,每一束入射光$L_i(\vec{p},\bs\omega_i)$都来源于另一物体上另一点$\vec{p}'$沿方向$-\bs\omega_i$的出射光$L_o(\vec{p}',-\bs\omega_i)$.因此,渲染方程实际上是递归定义的.\\
+\indent 渲染的本质问题,实际上就是求解上述积分方程.直接求解是非常困难的,因此我们通常采取各种数值方法进行计算.
+\subsubsection{渲染方程的面积分形式}
+我们现在把渲染方程从一点的形式继续扩展至整个场景.假定出射光由$\vec{p}'$指向$\vec{p}$,则对于$\vec{p}'$的渲染方程为
+\[L_o(\vec{p}',\bs\omega_o)=L_e(\vec{p}',\bs\omega_o)+\int_{S^2}f(\vec{p}',\bs\omega_i,\bs\omega_o)L_i(\vec{p}',\bs\omega_i)\left|\cos\theta_i\right|\di\bs\omega_i\]
+前面我们已经提到,每一束入射光$L_i(\vec{p}',\bs\omega_i)$都来源于另一点$\vec{p}''$沿方向$-\bs\omega_i$的出射光$L_o(\vec{p}'',-\bs\omega_i)$.定义\tbf{路径追踪函数}$t(\vec{q},\bs\omega)$表示从点$\vec{q}$沿$\bs\omega$方向上与空间中各物体的第一个交点$\vec{q}'$,那么$\vec{p}'$处的入射光的辐射率可以表示为
+\[L_i(\vec{p}',\bs\omega_i)=L_o(t(\vec{p}',\bs\omega_i),-\bs\omega_i)\]
+此外,如果场景不是封闭的,并且光线$(\vec{q},\bs\omega)$与任何物体都不相交,就定义$t(\vec{q},\bs\omega)=\bs\Lambda$,并且$L_o(\bs\Lambda,\bs\omega)=0$.由此,我们可以把渲染方程改写为下述形式:
+\[L_o(\vec{p}',\bs\omega_o)=L_e(\vec{p}',\bs\omega_o)+\int_{S^2}f(\vec{p}',\bs\omega_i,\bs\omega_o)L_o(t(\vec{p}',\bs\omega_i),-\bs\omega_i)\left|\cos\theta_i\right|\di\bs\omega_i\]
+现在,我们就无需考虑入射辐射率$L_i$,而仅需要考虑出射辐射率$L_o$.当然,它出现在等式的两边,并且积分号中也存在,因此我们的任务仍然不简单.\\
+\indent 上述方程比较复杂的原因之一是路径追踪函数$t(\vec{p},\bs\omega)$是隐式的.我们尝试把上述积分改写成面积分.记
+\[L(\vec{p}'\to\vec{p})=L_{o}(\vec{p}',\bs\omega_o)\]
+其中$\bs\omega_o$即由$\vec{p}'$指向$\vec{p}$的向量.我们把$\vec{p}'$处的BSDF函数写成类似的形式:
+\[f(\vec{p}''\to\vec{p}'\to\vec{p})=f(\vec{p}',\bs\omega_i,\bs\omega_o)\]
+其中$\bs\omega_i$由$\vec{p}'$指向$\vec{p}''$.\\
+\indent 现在,最重要的步骤是把对角度的积分转换为对面积的积分.根据立体角的定义可知$p'$处入射立体角的微元$\di\bs\omega_i$与$\vec{p}''$处的面积微元$\di A(\vec{p}'')$的关系为
+\[\di\bs\omega_i=\dfrac{\left|\cos\theta'\right|}{\left|\left|\vec{p}''-\vec{p}'\right|\right|^2}\di A(\vec{p}'')\]
+其中$\theta'$为$\bs\omega_i$与$\vec{p}''$处法向量$\vec{n}''$的夹角.定义可见函数$V(\vec{q}\leftrightarrow\vec{q}')$, $\vec{q},\vec{q}'$之间没有阻挡时取$1$,否则取$0$.把上述关系连同渲染方程中原有的角度项记为
+\[G(\vec{p}''\leftrightarrow\vec{p}')=V(\vec{p}''\leftrightarrow\vec{p}')\dfrac{\left|\cos\theta\cos\theta'\right|}{\left|\left|\vec{p}''-\vec{p}'\right|\right|^2}\]
+这样,渲染方程最终可以写做如下形式:
+\[L(\vec{p}'\to\vec{p})=L_e(\vec{p}'\to\vec{p})+\int_{A}f(\vec{p}''\to\vec{p}'\to\vec{p})L(\vec{p}''\to\vec{p}')G(\vec{p}''\leftrightarrow\vec{p}')\di A(\vec{p}'')\]
+其中$A$是场景中的全部表面.
+\subsubsection{渲染方程的路径积分形式}
+我们把光传输方程展开如下:
+\[\begin{aligned}
+    L(\vec{p}_1\to\vec{p}_0)
+    =&L_e(\vec{p}_1\to\vec{p}_0)\\
+    &+\int_AL_e(\vec{p}_2\to\vec{p}_1)f(\vec{p}_2\to\vec{p}_1\to\vec{p}_0)G(\vec{p}_2\leftrightarrow\vec{p}_1)\di A(\vec{p}_2)\\
+    &+\int_A\int_AL_e(\vec{p}_3\to\vec{p}_2)f(\vec{p}_3\to\vec{p}_2\to\vec{p}_1)G(\vec{p}_3\leftrightarrow\vec{p}_2)\di A(\vec{p}_3)\di A(\vec{p}_2)\\
+    &+\cdots
+\end{aligned}\]
+等式右边的每一项都表示一条长度递增的路径.更简洁地,定义
+\[P(\bar{\vec{p}_n})=\underbrace{\int_A\cdots\int_A}_{n-1\text{重积分}}L_e(\vec{p}_n\to\vec{p}_{n-1})\left(\prod_{i=1}^{n-1}f(\vec{p}_{i+1}\to\vec{p}_i\to\vec{p}_{i-1})G(\vec{p}_{i+1}\leftrightarrow\vec{p}_i)\right)\di A(\vec{p}_2)\cdots\di A(\vec{p}_n)\]
+表示具有$n+1$个点的路径$\vec{p}_n\to\vec{p}_{n-1}\to\cdots\to\vec{p}_1\to\vec{p}_0$所贡献的辐射率.于是上述无穷求和可以写做
+\[L(\vec{p}_1\to\vec{p}_0)=\sum_{n=1}^{\infty}P(\bar{\vec{p}}_n)\]
+现在,只需要对于给定的$n$在空间中随机地采样$n$个点,就可以估计出$P(\bar{\vec{p}}_n)$的值.这就是光线追踪的蒙特卡洛方法的基本思想.
+\end{document}

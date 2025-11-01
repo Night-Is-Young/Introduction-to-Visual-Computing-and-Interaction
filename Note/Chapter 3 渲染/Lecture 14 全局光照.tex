@@ -2,59 +2,96 @@
 \usepackage{Note}
 \begin{document}
 \section{全局光照}
-光照是渲染的基础.为了理解渲染的过程,我们需要理解光在环境中的传输过程.
-\subsection{渲染方程}
-\subsubsection{辐射度量学}
-为了描述光的传输过程,我们需要引入一些\tbf{辐射度量学(Radiometry)}的概念.
-\paragraph{基本假设}
-首先,我们在渲染时总是假设几何光学成立,这导致了对光有如下基本假设:
-\begin{theorem}[光的基本假设]
-    \begin{enumerate}[label=\tbf{\arabic*.}]
-        \item \tbf{线性}:光的传输是线性的,即多束光的叠加等于各束光的单独传输之和.
-        \item \tbf{能量守恒}:光经过散射后,散射光的能量不大于入射光的能量.
-        \item \tbf{无偏振}:忽略光的偏振效应.
-        \item \tbf{稳态}:环境中光的分布不随时间变化.
-    \end{enumerate}
-\end{theorem}
-\paragraph{基本物理量}
-在辐射度量学中,我们主要关心以下物理量:通量,辐照度,强度和辐射率.需要注意的是这些度量都依赖于波长,但在本章的讨论中我们通常不表明这一依赖关系.
-\begin{definition}[通量]
-    \tbf{通量(Flux)}$\Phi$表示单位时间内通过某一给定面的光的能量,即
-    \[\Phi=\dfrac{\di Q}{\di t}\]
-\end{definition}
-光源的总发射常用通量表示,因为从上述定义可以看出通量与我们选取的截面无关.
-\begin{definition}[辐照度与辐射出射度]
-    \tbf{辐照度(Irradiance)}$E$表示单位面积上接收到的通量,\tbf{辐射出射度(Radiant Exitance)}$M$表示单位面积上发出的通量.对于空间中给定面上的一点$\vec{p}$,其辐照度可以通过微分定义如下:
-    \[E(\vec{p})=\dfrac{\di \Phi(\vec{p})}{\di A}\]
-\end{definition}
-\begin{definition}[强度]
-    \tbf{强度(Intensity)}$I$表示单位立体角上发射的通量.点光源在某一特定方向$\bs\omega$上的通量$I$可以通过微分定义如下:
-    \[I(\bs\omega)=\dfrac{\di \Phi(\bs\omega)}{\di\bs\omega}\]
-\end{definition}
-\begin{definition}[辐射率]
-    \tbf{辐射率(Radiance)}$L$相比辐照度考虑了光在不同方向上的分布.空间中某一点$\vec{p}$在方向$\bs\omega$上的辐射率可以定义如下:
-    \[L(\vec{p},\bs\omega)=\dfrac{\di E_{\bs\omega}(\vec{p})}{\di\bs\omega}=\dfrac{\di^2\Phi(\vec{p},\bs\omega)}{\di A^\bot\di\bs\omega}\]
-    其中$\di A^\bot=\di A\cos\theta$表示垂直于$\bs\omega$的面积元.\\
-    也即,给定点$\vec{p}$处的指定方向$\bs\omega$上的辐射率$L(\vec{p},\bs\omega)$表示$\bs\omega$上单位立体角和垂直$\bs\omega$上单位面积上的通量.
-\end{definition}
-在所有这些辐射度量中,辐射率将在本章中最频繁地使用.某种意义上它是所有辐射度量中最基本的,如果给定了辐射率,那么所有其他值都可以通过对辐射率在区域和方向上的积分来计算.\\
-\indent 辐射率的另一个良好属性是在通过空间中的射线上保持不变.这意味着我们只需考虑$L(\vec{p},\bs\omega)$在物体表面上的取值,而不必考虑光在空间中传播的过程.\\
-\indent 在上述所有物理量中,比较重要的是辐射率$L$与辐照度$E$的关系.对于给定面上的一点$\vec{p}$以及此处的法向量$\vec{n}$,入射到该点的辐照度$E(\vec{p})$可以通过该点在各个方向上的辐射率积分得到(这里的下标$i$表示入射光,以后的$o$表示出射光):
-\[E(\vec{p})=\int_{\Omega}L_i(\vec{p},\bs\omega_i)\cos\theta_i\di\bs\omega_i\]
-其中$\Omega$表示以$\vec{p}$为顶点的半空间,通常选择法向量$\vec{n}$对应的半球,记作$H^2(\vec{n})$. $\theta_i$表示入射方向$\bs\omega_i$与法向量$\vec{n}$之间的夹角.
-\subsubsection{反射模型}
-当光线入射到表面时,表面会散射光线,将部分光线反射回环境中.建立这种反射模型需要描述两种主要效应:反射光的光谱分布和方向分布.
-\paragraph{双向反射分布函数BRDF}
-为了描述表面对光的反射特性,我们引入\tbf{双向反射分布函数(Bidirectional Reflectance Distribution Function, BRDF)}. BRDF描述了入射光线和出射光线之间的关系,具体而言是对于物体表面上的一点$\vec{p}$,我们希望知道沿$\bs\omega_i$方向入射光的辐照度$E_i(\vec{p})$在沿$\bs\omega_o$方向上造成的出射光的辐射率$L_o(\vec{p},\bs\omega_o)$.
-\begin{definition}[双向反射分布函数]
-    给定表面上某一点$\vec{p}$,入射方向$\bs\omega_i$和出射方向$\bs\omega_o$,BRDF定义为:
-    \[f_r(\vec{p},\bs\omega_i,\bs\omega_o)=\dfrac{\di L_o(\vec{p},\bs\omega_o)}{L_i(\vec{p},\bs\omega_i)\cos\theta_i\di\bs\omega_i}\]
-    其中$\theta_i$是入射方向与表面法线之间的夹角.
-\end{definition}
 \subsection{光线投射与光线追踪}
 \subsubsection{光线投射}
 大部分环境中的光都不能被镜头所捕捉,因此相比于考虑每个光源发出的每条光线,我们不妨采取逆向思维,考虑那些最终到达镜头的光线.由于光路是可逆的,因此我们从镜头向屏幕上的点连一条线,该射线在场景中击中的第一个物体将决定该点的颜色.
-\begin{definition}[光线透射]
-    光线投射
+\begin{definition}[光线投射]
+    光线投射(Ray Casting)是一种通过从观察点向场景中投射射线来确定可见表面和颜色的技术.
 \end{definition}
+因此,光线投射算法的基本流程如下:
+\begin{enumerate}[label=\tbf{\arabic*.}]
+    \item 对于屏幕的每个像素点$(x,y)$,从相机位置向场景中投射一条穿过$(x,y)$的射线$\vec{r}(t)=\vec{o}+t\vec{d}$.
+    \item 计算射线$\vec{r}(t)$与场景中的物体第一次发生相交的位置$\vec{p}$.
+    \item 将交点$\vec{p}$与所有光源相连,分别得到一根shadow ray.判断shadow ray在到达光源之前是否与其他物体相交,如果相交则该光源对点$\vec{p}$不可见,否则可见.
+    \item 在可见的情况下,我们已经知道了指向光源的方向$\vec{l}$, 指向观察者的方向$-\vec{d}$,以及表面法线$\vec{n}$.使用在光照与着色中介绍的各种光照模型即可计算光源对点$\vec{p}$贡献的颜色.
+    \item 将所有光源的贡献累加,得到最终的像素颜色.
+\end{enumerate}
+上述过程的伪代码可以表示如下:
+\begin{lstlisting}[language=python]
+for each pixel (x, y) do
+    # Generate primary ray from camera through pixel
+    ray = generateRay(camera, x, y)
+    # Find intersection with scene.
+    hitInfo = intersectScene(ray)
+    if hitInfo.hit then
+        color = vec3(0, 0, 0)
+        # For each light source, check visibility and compute lighting.
+        for each light in scene.lights do
+            shadowRay = generateShadowRay(hitInfo.position, light.position)
+            if not intersectScene(shadowRay).hit then
+                color += computeLighting(hitInfo, light)
+        setPixelColor(x, y, color)
+    else
+        setPixelColor(x, y, backgroundColor)
+\end{lstlisting}
+\subsubsection{光线追踪}
+在实际情况下,物体接受的光照可能并不直接来自于光源,而可能经过其它物体的反射/折射再到达该物体上.为了考虑这些间接光照,我们需要引入光线追踪技术.
+\begin{definition}[光线追踪]
+    光线追踪(Ray Tracing)通过模拟光线在场景中的传播路径,包括反射和折射,来生成更加逼真的图像.
+\end{definition}
+光线追踪算法的基本流程如下:
+\begin{enumerate}[label=\tbf{\arabic*.}]
+    \item 对于屏幕的每个像素点$(x,y)$,从相机位置向场景中投射一条穿过$(x,y)$的射线$\vec{r}(t)=\vec{o}+t\vec{d}$.
+    \item 计算射线$\vec{r}(t)$与场景中的物体第一次发生相交的位置$\vec{p}$.
+    \item 按照光线投射中介绍的办法计算交点$\vec{p}$处直接来自于光源形成的颜色.
+    \item 根据材质属性,生成反射射线和折射射线,递归地追踪这些射线以计算间接光照形成的颜色.
+    \item 将局部光照和间接光照形成的颜色累加,得到最终的像素颜色.
+\end{enumerate}
+上述过程的递归形式的伪代码可以表示如下:
+\begin{lstlisting}[language=python]
+# Define recursively ray tracing function.
+function traceRay(ray, depth):
+    if depth > maxDepth then
+        return backgroundColor
+    hitInfo = intersectScene(ray)
+    if hitInfo.hit then
+        color = computeLocalLighting(hitInfo)
+        # Compute reflection
+        if hitInfo.material.reflective then
+            reflectRay = generateReflectRay(hitInfo)
+            color += hitInfo.material.reflectivity * traceRay(reflectRay, depth + 1)
+        # Compute refraction
+        if hitInfo.material.refractive then
+            refractRay = generateRefractRay(hitInfo)
+            color += hitInfo.material.transparency * traceRay(refractRay, depth + 1)
+        return color
+    else
+        return backgroundColor
+for each pixel (x, y) do
+    ray = generateRay(camera, x, y)
+    color = traceRay(ray, 0)
+    setPixelColor(x, y, color)
+\end{lstlisting}
+光线追踪算法能够生成高度逼真的图像,但计算开销较大,因此在实际应用中通常会结合其他算法进行优化.我们将在之后讲到优化的方式.在此之前,我们先来了解光线投射/追踪的基本步骤,即光线求交.
+\subsection{光线求交}
+可以看出,在光线投射与光线追踪算法中,计算射线与场景中物体的交点是一个核心步骤.高效地实现光线求交对于提升渲染性能至关重要.下面我们将介绍几种常见的几何体与光线求交点的办法.在本节的推导中,我们假定光线的方程为
+\[\vec{r}(t)=\vec{o}+t\vec{d},\quad 0\leq t<+\infty\]
+其中$\vec{o}$意为Origin,即光线的起点,而$\vec{d}$意为Direction,即光线的方向向量.求得的$t$即与物体的交点到光线起点的距离.
+\subsubsection{光线与球面求交}
+考虑球心为$\vec{c}$,半径为$r$的球面,其隐式方程为
+\[\left|\left|\vec{p}-\vec{c}\right|\right|^2=r^2\]
+代入光线方程,我们有
+\[\left|\left|\vec{o}+t\vec{d}-\vec{c}\right|\right|^2=r^2\]
+展开后得到关于$t$的二次方程
+\[t^2\vec{d}\cdot\vec{d}+2t\vec{d}\cdot(\vec{o}-\vec{c})+(\vec{o}-\vec{c})\cdot(\vec{o}-\vec{c})-r^2=0\]
+设$a=\vec{d}\cdot\vec{d}$, $b=2\vec{d}\cdot(\vec{o}-\vec{c})$, $c=(\vec{o}-\vec{c})\cdot(\vec{o}-\vec{c})-r^2$, 则方程的解为
+\[t=\frac{-b\pm\sqrt{b^2-4ac}}{2a}\]
+根据判别式$b^2-4ac$的值,我们可以判断光线与球面的交点情况是相离,相切还是相交,然后根据求根公式即可求出交点.
+\subsubsection{光线与长方体求交}
+为了简化光线与物体的求交计算,我们通常对物体创建一个规则的几何外形将其包围.最常见的包围体是\tbf{轴对齐包围盒(Axis-Aligned Bounding Box, AABB)}.
+\begin{definition}[轴对齐包围盒]
+    轴对齐包围盒是指其边界与坐标轴平行的长方体,通常由最小点$\vec{min}=(x_{min},y_{min},z_{min})$和最大点$\vec{max}=(x_{max},y_{max},z_{max})$定义.
+\end{definition}
+这里介绍一种高效的光线与AABB求交的方法,即\tbf{Slabs Method}.不失一般性地,我们考虑长方体中平行于$xy$平面的表面.设表面所在的方程分别为$z=z_{min}$和$z=z_{max}$,则光线与这两个平面的交点$t$值分别为
+\[t_{z_{min}}=\frac{z_{min}-o_z}{d_z},\quad t_{z_{max}}=\frac{z_{max}-o_z}{d_z}\]
 \end{document}
