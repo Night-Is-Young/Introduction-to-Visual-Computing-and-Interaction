@@ -90,8 +90,69 @@ for each pixel (x, y) do
 \subsubsection{光线与长方体求交}
 为了简化光线与物体的求交计算,我们通常对物体创建一个规则的几何外形将其包围.最常见的包围体是\tbf{轴对齐包围盒(Axis-Aligned Bounding Box, AABB)}.
 \begin{definition}[轴对齐包围盒]
-    轴对齐包围盒是指其边界与坐标轴平行的长方体,通常由最小点$\vec{min}=(x_{min},y_{min},z_{min})$和最大点$\vec{max}=(x_{max},y_{max},z_{max})$定义.
+    轴对齐包围盒是指其边界与坐标轴平行的长方体,通常由最小点$\vec{p}_{\min}=(x_{\min},y_{\min},z_{\min})$和最大点$\vec{p}_{\max}=(x_{\max},y_{\max},z_{\max})$定义.
 \end{definition}
-这里介绍一种高效的光线与AABB求交的方法,即\tbf{Slabs Method}.不失一般性地,我们考虑长方体中平行于$xy$平面的表面.设表面所在的方程分别为$z=z_{min}$和$z=z_{max}$,则光线与这两个平面的交点$t$值分别为
-\[t_{z_{min}}=\frac{z_{min}-o_z}{d_z},\quad t_{z_{max}}=\frac{z_{max}-o_z}{d_z}\]
+这里介绍一种高效的光线与AABB求交的方法,即\tbf{Slabs Method}.不失一般性地,我们考虑长方体中平行于$xy$平面的表面.设表面所在的方程分别为$z=z_{\min}$和$z=z_{\max}$,则光线与这两个平面的交点$t$值分别为
+\[t_{z_{\min}}=\frac{z_{\min}-\vec{o}_z}{\vec{d}_z},\quad t_{z_{\max}}=\frac{z_{\max}-\vec{o}_z}{\vec{d}_z}\]
+于是光线处于这两个平面之间时总有
+\[t_{z_{\min}}\leq t\leq t_{z_{\max}}\]
+类似地,我们可以计算出光线与平行于$xy$平面和$yz$平面的交点$t$值,分别记为$t_{x_{\min}},t_{x_{\max}}$和$t_{y_{\min}},t_{y_{\max}}$.如果光线与长方体相交,那么它同时处于这三组平面之间,于是
+\[\left[t_{x_{\min}},t_{x_{\max}}\right]\cap\left[t_{y_{\min}},t_{y_{\max}}\right]\cap\left[t_{z_{\min}},t_{z_{\max}}\right]\neq\varnothing\]
+于是令
+\[t_{\min}=\max\left\{t_{x_{\min}},t_{y_{\min}},t_{z_{\min}}\right\},\quad t_{\max}=\min\left\{t_{x_{\max}},t_{y_{\max}},t_{z_{\max}}\right\}\]
+只需要$t_{\min}\leq t_{\max}$,则光线与长方体相交,交出的线段即为
+\[\vec{r}'(t)=\vec{o}+t\vec{d},\quad t_{\min}\leq t\leq t_{\max}\]
+\subsubsection{光线与三角面片求交}
+三角面片是计算机图形学中最常用的基本几何体之一,因此高效地实现光线与三角面片的求交对于光线追踪算法至关重要.这里介绍一种常用的光线与三角面片求交算法,即\tbf{Möller-Trumbore算法}.对于三角形上任意一点$\vec{t}(u,v)$,其满足
+\[\vec{t}(u,v)=(1-u-v)\vec{v}_0+u\vec{v}_1+v\vec{v}_2\]
+这里的$u,v$即为点在三角形中的重心坐标,满足$u\geq0,v\geq0$且$u+v\leq1$.将上述方程与光线方程联立,可得
+\[\vec{o}+t\vec{d}=(1-u-v)\vec{v}_0+u\vec{v}_1+v\vec{v}_2\]
+整理后得到
+\[-t\vec{d}+u(\vec{v}_1-\vec{v}_0)+v(\vec{v}_2-\vec{v}_0)=\vec{o}-\vec{v}_0\]
+这一线性方程组的矩阵形式为
+\[\begin{bmatrix}
+    -\vec{d}&\vec{v}_1-\vec{v}_0&\vec{v}_2-\vec{v}_0
+\end{bmatrix}\begin{bmatrix}
+    t\\u\\v
+\end{bmatrix}=\vec{o}-\vec{v}_0\]
+令
+\[\vec{D}=\vec{d},\quad\vec{E}_1=\vec{v}_1-\vec{v}_0,\quad\vec{E}_2=\vec{v}_2-\vec{v}_0,\quad\vec{T}=\vec{o}-\vec{v}_0\]
+根据Cramer法则可知线性方程组的解为
+\[\begin{bmatrix}
+    t\\u\\v
+\end{bmatrix}=\dfrac{1}{\det\begin{bmatrix}
+    -\vec{D}&\vec{E}_1&\vec{E}_2
+\end{bmatrix}}\begin{bmatrix}
+    \det\begin{bmatrix}
+        \vec{T}&\vec{E}_1&\vec{E}_2
+    \end{bmatrix}\\[6pt]
+    \det\begin{bmatrix}
+        -\vec{D}&\vec{T}&\vec{E}_2
+    \end{bmatrix}\\[6pt]
+    \det\begin{bmatrix}
+        -\vec{D}&\vec{E}_1&\vec{T}
+    \end{bmatrix}
+\end{bmatrix}\]
+根据我们在线性代数中所学的知识有
+\[\det\begin{bmatrix}
+    \vec{A}&\vec{B}&\vec{C}
+\end{bmatrix}=-(\vec{A}\times\vec{C})\cdot\vec{B}=-(\vec{C}\times\vec{B})\cdot\vec{A}\]
+于是上式可以改写为
+\[\begin{bmatrix}
+    t\\u\\v
+\end{bmatrix}=\dfrac{1}{(\vec{D}\times\vec{E}_2)\cdot\vec{E}_1}\begin{bmatrix}
+    (\vec{T}\times\vec{E}_1)\cdot\vec{E}_2\\
+    (\vec{D}\times\vec{E}_2)\cdot\vec{T}\\
+    (\vec{T}\times\vec{E}_1)\cdot\vec{D}
+\end{bmatrix}\]
+令$\vec{P}=\vec{D}\times\vec{E}_2,\vec{Q}=\vec{T}\times\vec{E}_1$,则有
+\[t=\dfrac{\vec{Q}\cdot\vec{E}_2}{\vec{P}\cdot\vec{E}_1},\quad u=\dfrac{\vec{P}\cdot\vec{T}}{\vec{P}\cdot\vec{E}_1},\quad v=\dfrac{\vec{Q}\cdot\vec{D}}{\vec{P}\cdot\vec{E}_1}\]
+最后判断$u\geq0,v\geq0,u+v\leq1$且$t\geq0$即可确定光线与三角面片是否相交,如果相交则交点为$\vec{r}(t)=\vec{o}+t\vec{d}$,在三角面片上的重心坐标为$(u,v)$.\\
+\indent 上述过程的算法流程如下:
+\begin{enumerate}[label=\tbf{\arabic*.}]
+    \item 按照定义计算辅助向量$\vec{D},\vec{E}_1,\vec{E}_2,\vec{T},\vec{P},\vec{Q}$.
+    \item 判断行列式$\vec{P}\cdot\vec{E}_1$是否接近于0,如果是则光线与三角面片平行,不相交.
+    \item 计算参数$t,u,v$的值.
+    \item 判断$u\geq0,v\geq0,u+v\leq1$且$t\geq0$是否成立,如果成立则光线与三角面片相交,否则不相交.
+\end{enumerate}
 \end{document}
