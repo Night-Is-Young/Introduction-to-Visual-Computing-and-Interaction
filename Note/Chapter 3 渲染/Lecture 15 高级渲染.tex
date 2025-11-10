@@ -125,5 +125,27 @@
 \[P(\bar{\vec{p}_n})=\underbrace{\int_A\cdots\int_A}_{n-1\text{重积分}}L_e(\vec{p}_n\to\vec{p}_{n-1})\left(\prod_{i=1}^{n-1}f(\vec{p}_{i+1}\to\vec{p}_i\to\vec{p}_{i-1})G(\vec{p}_{i+1}\leftrightarrow\vec{p}_i)\right)\di A(\vec{p}_2)\cdots\di A(\vec{p}_n)\]
 表示具有$n+1$个点的路径$\vec{p}_n\to\vec{p}_{n-1}\to\cdots\to\vec{p}_1\to\vec{p}_0$所贡献的辐射率.于是上述无穷求和可以写做
 \[L(\vec{p}_1\to\vec{p}_0)=\sum_{n=1}^{\infty}P(\bar{\vec{p}}_n)\]
-现在,只需要对于给定的$n$在空间中随机地采样$n$个点,就可以估计出$P(\bar{\vec{p}}_n)$的值.这就是光线追踪的蒙特卡洛方法的基本思想.
+现在,对于给定的$n$,只需要在空间中随机地采样$n$个点,就可以估计出$P(\bar{\vec{p}}_n)$的值.
+\subsection{蒙特卡洛积分}
+我们回到前面的渲染方程的角度积分形式.
+\[L_o(\vec{p},\bs\omega_o)=L_e(\vec{p},\bs\omega_o)+\int_{S^2}f(\vec{p},\bs\omega_i,\bs\omega_o)L_i(\vec{p},\bs\omega_i)\left|\cos\theta_i\right|\di\bs\omega_i\]
+直接求解上述积分显然是很麻烦的.我们更希望用采样的方式解决积分问题.我们先从简单的情形考虑采样的办法.例如,对于函数$f(x)$和积分$\displaystyle\int_a^b f(x)\di x$.我们在$[a,b]$区间采样了$N$个点$\li x,N$,采样的概率密度函数为$p(x)$.令
+\[F_N=\dfrac{1}{N}\sum_{i=1}^{N}\dfrac{f(x_i)}{p(x_i)}\]
+于是有
+\[E(F_N)=\dfrac{1}{N}\sum_{i=1}^{N}\int_{a}^{b}\left(\dfrac{f(x_i)}{p(x_i)}\right)p(x_i)\di x_i=\int_{a}^{b}f(x)\di x\]
+于是我们可以把$F_N$作为上述积分的估计值.同样地,在$S^2$中随机地选取$N$个立体角$\li\omega,N$,则有
+\[L_o(\vec{p},\bs\omega_o)=L_e(\vec{p},\bs\omega_o)+\dfrac{1}{N}\sum_{j=1}^{N}\dfrac{f(\vec{p},\bs\omega_j,\bs\omega_o)L_i(\vec{p},\bs\omega_j)\left|\cos\theta_j\right|}{p(\bs\omega_j)}\]
+于是渲染的过程就可以写做递归的形式:
+\begin{lstlisting}[language=python]
+def shade(p, wo)
+    Randomly choose N directions wi
+    Lo = 0.0
+    for each wi
+        Trace a ray r(p, wi)
+        if r hit a light
+            Lo += (1 / N) * L_i * f_r * cos / p(wi)
+        else if r hit an obj at q
+            Lo += (1 / N) * shade(q, -wi) * f_r * cos / p(wi)
+    return Lo
+\end{lstlisting}
 \end{document}
