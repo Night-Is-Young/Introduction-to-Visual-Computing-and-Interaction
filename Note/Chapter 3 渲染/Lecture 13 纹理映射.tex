@@ -51,32 +51,60 @@
 \subsubsection{凹凸贴图}
 如果物体的表面凹凸不平,我们不得不采用更高精度的模型来表示这些细节,从而增加开销.然而,如果这些凹凸结构只影响最后的渲染,而不影响物体的其它效果(比如物体的运动和碰撞等),我们就可以使用精度较低的模型,然后将这些表面的凹凸细节记录在纹理中.这种技术称作\tbf{凹凸贴图(Bump Mapping)}.\\
 \indent 实现凹凸贴图的办法有很多.一种办法是直接记录每个点的法向量(这是三维空间中的向量,因此恰好可以表示为RGB通道上的分量,从而以图像的形式存储);另一种办法是通过灰度图像记录高度信息,然后通过差分计算法向量.无论采用哪种办法,最终我们都可以在片元着色器中使用凹凸贴图后的法向量进行光照计算,从而得到更加真实的表面效果.\\
-\indent 考虑模型的法线$\vec{n}$.我们希望通过凹凸贴图对法向量施加一个扰动$\Delta\vec{n}$,即
+\paragraph{凹凸贴图的数学原理和传统方法}
+考虑模型的法线$\vec{n}$.我们希望通过凹凸贴图对法向量施加一个扰动$\Delta\vec{n}$,即
 \[\vec{n}'=\vec{n}+\Delta\vec{n}\]
 现在的目标是求出法线$\vec{n}$.对于模型上任意一点,将其位置$\vec{p}$写做UV坐标系下的参数方程$\vec{p}=\vec{p}(u,v)$.为了求出这一点的法向量$\vec{n}$,我们考虑固定$u$得到的曲线$\vec{p}_v=\vec{p}(u_0,v)$和固定$v$得到的曲线$\vec{p}_u=\vec{p}(u,v_0)$.对这两条曲线分别求导,可得它们在此处的切向方向为
 \[\vec{t}=\dfrac{\p\vec{p}}{\p u},\quad \vec{b}=\dfrac{\p\vec{p}}{\p v}\]
 这两条切线分别被称作切线和副切线.根据法线$\vec{n}$的定义,它应当与经过该点的所有曲线在此处的切线均垂直,特别地,它应当与切线$\vec{t}$和副切线$\vec{b}$均垂直.于是我们可以用向量的叉积求出法线,其方向即为
 \[\vec{n}=\dfrac{\vec{t}\times\vec{b}}{||\vec{t}\times\vec{b}||}\]
-现在假定每个点的高度由纹理函数$h(u,v)$给出,那么该点处真实的高度即为模型上的点沿模型法向量$\vec{n}$方向移动$h(u,v)$长度,于是新的位置为
+现在假定每个点的高度由纹理函数$h(u,v)$\footnote{在下一部分的改进办法中, $\tilde{h}$代指对物体表面上一点$(x,y,z)$的纹理高度,即$h(s,t)=\tilde{h}(\vec{p}(s,t))=\tilde{h}(x,y,z)$.}给出,那么该点处真实的高度即为模型上的点沿模型法向量$\vec{n}$方向移动$h(u,v)$长度,于是新的位置为
 \[\vec{p}'(u,v)=\vec{p}(u,v)+h(u,v)\vec{n}\]
 现在我们来计算新的法向量$\vec{n}'$.对$\vec{p}'$求偏导数,可得新的切线$\vec{t}'$为
 \[\vec{t}'=\dfrac{\p\vec{p}'}{\p u}=\dfrac{\p\vec{p}}{\p u}+\dfrac{\p h}{\p u}\vec{n}+\dfrac{\p\vec{n}}{\p u}h=\vec{t}+\dfrac{\p h}{\p u}\vec{n}+\dfrac{\p\vec{n}}{\p u}h\]
 类似地可得新的副切线$\vec{b}'$为
 \[\vec{b}'=\vec{b}+\dfrac{\p h}{\p v}\vec{n}+\dfrac{\p\vec{n}}{\p v}h\]
-一般而言,法向量$\vec{n}$的变化(尤其是在精度不高地模型上)是比较小的,因此可以忽略上式中带有$\dfrac{\p\vec{n}}{\p u,v}$的项.于是新的法向量可以由下式给出(这里没有经过单位化):
+一般而言,法向量$\vec{n}$的变化(尤其是在精度不高的模型上)是比较小的,因此可以忽略上式中带有$\dfrac{\p\vec{n}}{\p u,v}$的项.于是新的法向量可以由下式给出:
 \[\begin{aligned}
     \vec{n}'
     &=\vec{t}'\times\vec{b}'=\left(\vec{t}+\dfrac{\p h}{\p u}\vec{n}\right)\times\left(\vec{b}+\dfrac{\p h}{\p v}\vec{n}\right)\\
     &=\vec{t}\times\vec{b}+\dfrac{\p h}{\p u}\vec{n}\times\vec{b}+\dfrac{\p h}{\p v}\vec{t}\times\vec{n}
 \end{aligned}\]
 最后归一化即可得到新的法向量:
-\[\vec{n}'=\text{normalize}\left(\vec{n}-\dfrac{\p h}{\p u}\vec{b}\times\vec{n}-\dfrac{\p h}{\p v}\vec{n}\times\vec{t}\right)\]
-\indent 在实际实现中,我们通常使用屏幕坐标及其偏导数代替前述推导中的UV坐标.考虑屏幕上位于$(x,y)$处对应物体的点在空间中的位置$\vec{p}(x,y)$.对其求偏导可得
-\[\vec{p}_x=\dfrac{\p\vec{p}}{\p x},\quad\vec{p}_y=\dfrac{\p\vec{p}}{\p y}\]
-然后令
-\[\vec{r}_1=\vec{p}_y\times\vec{n},\quad \vec{r}_2=\vec{n}\times\vec{p}_x\]
-于是同理可得
-\[\vec{n}'=\text{normalize}\left(\vec{n}-\dfrac{\p h}{\p x}\vec{r}_1-\dfrac{\p h}{\p y}\vec{r}_2\right)\]
+\[\vec{n}'=\text{normalize}\left(\vec{t}\times\vec{b}-\dfrac{\p h}{\p u}\vec{b}\times\vec{n}-\dfrac{\p h}{\p v}\vec{n}\times\vec{t}\right)=\vec{n}+\dfrac{\dfrac{\p h}{\p u}\vec{n}\times\vec{b}+\dfrac{\p h}{\p v}\vec{t}\times\vec{n}}{\vec{n}\cdot(\vec{t}\times\vec{b})}\]
+\paragraph{基于表面梯度的凹凸贴图办法}
+传统的凹凸贴图依赖于已知的表面参数化,在网格中需要预计算和存储切向量,增加了内存和计算开销.我们现在介绍一种基于表面梯度的凹凸贴图办法.\\
+\indent 仍然考虑物体表面的参数化.但是现在,我们不一定要采用UV坐标,而是考虑一个任意的参数化方式$\vec{p}(s,t)$.通过类似的方式仍然能求出其切线$\vec{t}$,副切线$\vec{b}$以及法线$\vec{n}$.对于定义在物体表面$S$上的高度函数$\tilde{h}$,其表面梯度$\nabla_S\tilde{h}$是一个切于表面的向量,沿该方向上函数变化的速率最快.事实上,$\nabla_S\tilde{h}$正是$\nabla\tilde{h}$在$S$的切平面上的投影向量,即
+\[\nabla_S\tilde{h}=\nabla\tilde{h}-\left(\vec{n}\cdot\nabla\tilde{h}\right)\vec{n}\]
+我们现在先来求$\nabla_S\tilde{h}$.将$\tilde{h}$视作$s,t$的函数,即$h(s,t)=\tilde{h}(\vec{p}(s,t))$,于是对$h$求偏导数可得
+\[\begin{aligned}
+    \dfrac{\p h}{\p s}
+    &=\dfrac{\p}{\p s}\tilde{h}(\vec{p}(s,t))=\dfrac{\p}{\p s}\tilde{h}(x(s,t),y(s,t),z(s,t))\\
+    &=\dfrac{\p\tilde{h}}{\p x}\dfrac{\p x}{\p s}+\dfrac{\p\tilde{h}}{\p y}\dfrac{\p y}{\p s}+\dfrac{\p\tilde{h}}{\p z}\dfrac{\p z}{\p s}\\
+    &=\nabla\tilde{h}\cdot\dfrac{\p\vec{p}}{\p s}=\nabla\tilde{h}\cdot\vec{t}
+\end{aligned}\]
+同样地有
+\[\dfrac{\p h}{\p t}=\nabla\tilde{h}\cdot\dfrac{\p\vec{p}}{\p t}=\nabla\tilde{h}\cdot\vec{b}\]
+根据$\nabla_S\tilde{h}$与$\nabla\tilde{h}$的关系可得
+\[\nabla_S\tilde{h}\cdot\vec{t}=\left(\nabla\tilde{h}-\left(\vec{n}\cdot\nabla\tilde{h}\right)\vec{n}\right)\cdot\vec{t}=\nabla_S\tilde{h}\cdot\vec{t}-\left(\vec{n}\cdot\nabla\tilde{h}\right)\vec{n}\times\vec{t}=\nabla_S\tilde{h}\cdot\vec{t}=\dfrac{\p h}{\p s}\]
+同样地有
+\[\nabla_S\tilde{h}\cdot\vec{b}=\dfrac{\p h}{\p t}\]
+此外, $\nabla_S\tilde{h}$本身也位于切平面上,因此可以将它表示为$\vec{t}$和$\vec{b}$的线性组合.为了接下来的计算方便,我们引入$\vec{t},\vec{b}$的对偶基$\vec{t}^\ast,\vec{b}^\ast$,它们满足
+\[\vec{t}^\ast=\vec{b}\times\vec{n},\quad\vec{b}^\ast=\vec{n}\times\vec{t}\]
+令$D=\vec{n}\cdot(\vec{t}\times\vec{b})$为$\vec{t},\vec{b}$与$\vec{n}$的标量三重积.对偶基$\vec{t}^\ast,\vec{b}^\ast$有如下性质:
+\[\vec{t}^\ast\cdot\vec{t}=\vec{b}^\ast\cdot\vec{b}=D,\quad\vec{t}^\ast\cdot\vec{b}=\vec{b}^\ast\cdot\vec{t}=0\]
+并且容易看出$\vec{t}^\ast$和$\vec{b}^\ast$也是切平面的一组基.由于$\nabla_S\tilde{h}$也位于切平面上,因此存在唯一的$\alpha,\beta$使得
+\[\nabla_S\tilde{h}=\alpha\vec{t}^\ast+\beta\vec{b}^\ast\]
+利用我们之前的结论,将其分别于$\vec{t}$和$\vec{b}$做点积可得
+\[\left\{\begin{array}{l}
+    \nabla_S\tilde{h}\cdot\vec{t}=\alpha\vec{t}^\ast\cdot\vec{t}+\beta\vec{b}^\ast\cdot\vec{t}=\alpha D=\dfrac{\p h}{\p s}\\[6pt]
+    \nabla_S\tilde{h}\cdot\vec{b}=\alpha\vec{t}^\ast\cdot\vec{b}+\beta\vec{b}^\ast\cdot\vec{b}=\beta D=\dfrac{\p h}{\p t}
+\end{array}\right.\]
+于是就有
+\[\nabla_S\tilde{h}=\dfrac{\dfrac{\p h}{\p s}\vec{t}^\ast+\dfrac{\p h}{\p t}\vec{b}^\ast}{D}=\dfrac{\dfrac{\p h}{\p s}\vec{b}\times\vec{n}+\dfrac{\p h}{\p t}\vec{n}\times\vec{t}}{\vec{n}\cdot(\vec{t}\times\vec{b})}\]
+于是回顾我们前面推出的凹凸贴图法线扰动公式,就可得
+\[\vec{n}'=\vec{n}-\nabla_S h\]
+既然参数化方法$\vec{p}(s,t)$是任意选取的,那么最直接的想法就是令$s,t$分别为屏幕空间的$x,y$坐标.这样,我们可以在屏幕空间中通过微分或差分的方式直接计算上述式子中需要的参量$\vec{t},\vec{b},\dfrac{\p h}{\p s},\dfrac{\p h}{\p t}$.这就是基于表面梯度的凹凸贴图的实现原理.
 \subsubsection{立方体贴图与天空盒}
 简单的纹理通常是一张二维图形.在本节我们将讨论将多个纹理组合起来映射到一张纹理上的贴图:\tbf{立方体贴图(Cube Map)}.\\
 \indent 立方体贴图包含六张等大的正方形纹理图片,对应立方体的六个面.这里略去立方体贴图的实现方式.我们现在讨论其一个重要应用:\tbf{天空盒(Skybox)}.\\

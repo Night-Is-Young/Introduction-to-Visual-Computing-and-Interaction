@@ -5,481 +5,530 @@
 \date{\today}
 \begin{document}
 \maketitle
-\section*{Task 1: Loop Mesh Subdivision}
-\paragraph{实现方法}
-按照下面的步骤进行.\\
-\indent \tbf{更新原有顶点}:遍历{\codefont prev\_mesh}中的所有顶点{\codefont v},按照下面的方法计算新的位置{\codefont curr\_v\_pos}:
-\[\vec{v}^\ast=(1-nu)\vec{v}+\sum_{i=1}^{n}u\vec{v}_i,\quad u=\begin{cases}
-    3/16,&n=3\\
-    3/(8n),&n>3
-\end{cases}\]
-其中$n$为顶点邻接点的数目,根据{\codefont v}的邻居集合{\codefont neighbors}的长度{\codefont n}可以得到;然后根据{\codefont n}计算{\codefont u},最后求和后将结果存入{\codefont curr\_mesh.Positions}中即可.循环体内的代码如下:
+\section*{Task 1: Phong Illumination}
+\subsection*{原理与代码实现}
+Phong光照模型的计算公式为
+\[L=k_aI_a+k_d\left(I_d+\dfrac{I_p}{r^2}\right)\max(\vec{l}\cdot\vec{n},0)+k_s\left(I_d+\dfrac{I_p}{r^2}\right)\max(\vec{v}\cdot\vec{r},0)^\alpha\]
+Blinn-Phong光照模型的计算公式为
+\[L=k_aI_a+k_d\left(I_d+\dfrac{I_p}{r^2}\right)\max(\vec{l}\cdot\vec{n},0)+k_s\left(I_d+\dfrac{I_p}{r^2}\right)\max(\vec{n}\cdot\vec{h},0)^\alpha\]
+在着色器中实现的代码如下(这里已经将光强统一记为\code{lightIntensity},合并了距离衰减等因素):
 \begin{lstlisting}[language=C++]
-DCEL::VertexProxy const * v         = G.Vertex(i);
-std::vector<uint32_t>     neighbors = v->Neighbors();
-// your code here:
-glm::vec3   curr_v_pos { 0.0f };
-std::size_t n = neighbors.size();
-float       u = (n == 3) ? (3.0f / 16.0f) : (3.0f / (8.0f * n));
-curr_v_pos += (1.0f - u * n) * prev_mesh.Positions[i];
-for (std::size_t j = 0; j < n; ++j) curr_v_pos += u * prev_mesh.Positions[neighbors[j]];
-curr_mesh.Positions.push_back(curr_v_pos);
+vec3 Shade(vec3 lightIntensity, vec3 lightDir, vec3 normal, vec3 viewDir, vec3 diffuseColor, vec3 specularColor, float shininess) {
+    // your code here:
+    vec3 l = normalize(lightDir);
+    vec3 n = normalize(normal);
+    vec3 v = normalize(viewDir);
+    vec3 h = normalize(l + v);
+    if (!u_UseBlinn) {
+        return lightIntensity * (diffuseColor * max(dot(n, l), 0.0) +
+               specularColor * pow(max(dot(v, reflect(-l, n)), 0.0), shininess));
+    } else{
+        return lightIntensity * (diffuseColor * max(dot(n, l), 0.0) +
+               specularColor * pow(max(dot(h, n), 0.0), shininess));
+    }
+}
+\end{lstlisting}
+\subsection*{实现效果}
+\begin{figure}[H]
+    \centering
+    \subfigure[Phong光照模型的渲染效果]{
+        \includegraphics[scale=0.12]{figure/Phong.png}
+    }\qquad\qquad
+    \subfigure[Blinn-Phong光照模型的渲染效果]{
+        \includegraphics[scale=0.12]{figure/Blinn-Phong.png}
+    }
+    \caption{对\code{floor}的渲染结果}
+\end{figure}
+\subsection*{问题回答}
+\begin{enumerate}[leftmargin=*,label=\tbf{\arabic*.}]
+    \item 顶点着色器和片段着色器的关系是什么样的?顶点着色器中的输出变量是如何传递到片段着色器当中的?\\
+    \textit{答}: 顶点着色器负责处理顶点数据,进行坐标变换等操作;片段着色器负责计算每个像素的最终颜色;在GLSL中,变量传递依靠着色器的\code{in}和\code{out}关键字.顶点着色器中使用\code{out}声明的变量会传递给片段着色器中使用\code{in}声明的同名变量.
+    \item 代码中的\code{if (diffuseFactor.a < .2) discard;}这行语句,作用是什么?为什么不能用\code{if (diffuseFactor.a == 0.) discard;}代替?\\
+    \textit{答}: 起到透明度测试的作用,忽略较为透明的片段.如果用后面的代码替代,那么只有完全透明的像素会被丢弃,而很多比较透明的像素不会被丢弃,效率降低,同时可能造成较大的精度误差.
+\end{enumerate}
+\section*{Task 1 Bonus: Bump Mapping}
+\subsection*{原理与代码实现}
+考虑模型的法线$\vec{n}$.希望通过凹凸贴图对法向量施加一个扰动$\Delta\vec{n}$,即
+\[\vec{n}'=\vec{n}+\Delta\vec{n}\]
+现在的目标是求出法线$\vec{n}$.对于模型上任意一点,将其位置$\vec{p}$写作参数方程$\vec{p}=\vec{p}(s,t)$.此处的两个切向量分别为
+\[\vec{t}=\dfrac{\p\vec{p}}{\p s},\quad \vec{b}=\dfrac{\p\vec{p}}{\p t}\]
+法线应当与所有切向量垂直,于是
+\[\vec{n}=\dfrac{\vec{t}\times\vec{b}}{||\vec{t}\times\vec{b}||}\]
+设每个点的高度由纹理函数$h(s,t)$给出,那么该点处真实的高度即为模型上的点沿模型法向量$\vec{n}$方向移动$h(s,t)$长度,于是新的位置为
+\[\vec{p}'(s,t)=\vec{p}(s,t)+h(s,t)\vec{n}\]
+对$\vec{p}'$求偏导数,可得新的切线$\vec{t}'$为
+\[\vec{t}'=\dfrac{\p\vec{p}'}{\p s}=\dfrac{\p\vec{p}}{\p s}+\dfrac{\p h}{\p s}\vec{n}+\dfrac{\p\vec{n}}{\p s}h=\vec{t}+\dfrac{\p h}{\p s}\vec{n}+\dfrac{\p\vec{n}}{\p s}h\]
+类似地可得新的副切线$\vec{b}'$为
+\[\vec{b}'=\vec{b}+\dfrac{\p h}{\p t}\vec{n}+\dfrac{\p\vec{n}}{\p t}h\]
+一般而言,法向量$\vec{n}$的变化是比较小的,因此可以忽略上式中带有$\dfrac{\p\vec{n}}{\p s,t}$的项.于是新的法向量为
+\[\begin{aligned}
+    \vec{n}'
+    &=\vec{t}'\times\vec{b}'=\left(\vec{t}+\dfrac{\p h}{\p s}\vec{n}\right)\times\left(\vec{b}+\dfrac{\p h}{\p t}\vec{n}\right)\\
+    &=\vec{t}\times\vec{b}+\dfrac{\p h}{\p s}\vec{n}\times\vec{b}+\dfrac{\p h}{\p t}\vec{t}\times\vec{n}
+\end{aligned}\]
+最后归一化即可得到新的法向量:
+\[\vec{n}'=\text{normalize}\left(\vec{t}\times\vec{b}-\dfrac{\p h}{\p s}\vec{b}\times\vec{n}-\dfrac{\p h}{\p t}\vec{n}\times\vec{t}\right)=\vec{n}+\dfrac{\dfrac{\p h}{\p s}\vec{n}\times\vec{b}+\dfrac{\p h}{\p t}\vec{t}\times\vec{n}}{\vec{n}\cdot(\vec{t}\times\vec{b})}\]
+既然参数化方法$\vec{p}(s,t)$是任意选取的,那么可以令$s,t$分别为屏幕空间的$x,y$坐标.这样,可以在屏幕空间中通过微分或差分的方式直接计算上述式子中需要的参量$\vec{t},\vec{b},\dfrac{\p h}{\p s},\dfrac{\p h}{\p t}$.这就是基于表面梯度的凹凸贴图的实现原理,其代码实现如下:
+\begin{lstlisting}[language=C++]
+vec3 GetNormal() {
+    // Bump mapping from paper: Bump Mapping Unparametrized Surfaces on the GPU
+    vec3 vn = normalize(v_Normal);
+
+    // your code here:    
+    vec3 pDx = dFdx(v_Position);
+    vec3 pDy = dFdy(v_Position);
+    vec3 r1 = cross(pDy, vn);
+    vec3 r2 = cross(vn, pDx);
+    float d = dot(pDx, r1);
+    float h = texture(u_HeightMap, v_TexCoord).r;
+    float h1 = texture(u_HeightMap, v_TexCoord + dFdx(v_TexCoord)).r;
+    float h2 = texture(u_HeightMap, v_TexCoord + dFdy(v_TexCoord)).r;
+    vec3 bumpNormal = normalize(abs(d) * vn - (sign(d) * ((h1 - h) * r1 + (h2 - h) * r2)));
+
+    return bumpNormal != bumpNormal ? vn : normalize(vn * (1. - u_BumpMappingBlend) + bumpNormal * u_BumpMappingBlend);
+}
+\end{lstlisting}
+其中\code{pDx}和\code{pDy}分别对应$\vec{t}$和$\vec{b}$, \code{r1}和\code{r2}分别对应$\vec{b}\times\vec{n}$和$\vec{n}\times\vec{t}$,
+\code{h1 - h}和\code{h2 - h}分别对应$\dfrac{\p h}{\p s}$和$\dfrac{\p h}{\p t}$通过有限差分求得的近似值.
+\subsection*{实现效果}
+\begin{figure}[H]
+    \centering
+    \subfigure[未使用Bump Mapping]{
+        \includegraphics[scale=0.12]{figure/NoBump-Sibenik.png}
+    }\qquad\qquad
+    \subfigure[使用Bump Mapping]{
+        \includegraphics[scale=0.12]{figure/Bump-Sibenik.png}
+    }
+    \caption{对\code{Sibenik}使用Bump Mapping与否渲染结果对比}
+\end{figure}
+\section*{Task 2: Environment Mapping}
+\subsection*{原理与代码实现}
+环境映射的基本原理是利用一个预先生成的立方体贴图(一般可称之为天空盒)来表示环境,相机移动时天空盒不动,但相机旋转时天空盒随之旋转.此外,天空盒总是位于无限远处,不会产生透视缩放.其代码实现的过程和原理如下:\\
+\indent 首先,直接把立方体的方向向量\code{a\_Position}传给\code{v\_TexCoord},用作立方体贴图的方向向量:
+\begin{lstlisting}[language=C++]
+v_TexCoord  = a_Position;
+\end{lstlisting}
+为了保留相机的旋转而消除平移,将视图矩阵\code{u\_View}的平移部分(即最后一列)置零:
+\begin{lstlisting}[language=C++]
+mat4 view = mat4(mat3(u_View));
+\end{lstlisting}
+然后经过投影变换:
+\begin{lstlisting}[language=C++]
+vec4 pos = u_Projection * view * vec4(a_Position, 1.0);
+\end{lstlisting}
+最后,为了强制使得天空盒位于最远处,需要在透视除法后使得$z$坐标为$1$.这可以通过令顶点的$z$坐标等于$w$坐标来实现:
+\begin{lstlisting}[language=C++]
+gl_Position = pos.xyww;
+\end{lstlisting}
+整体的代码如下:
+\begin{lstlisting}[language=C++]
+void main() {
+    v_TexCoord  = a_Position;
+    // your code here
+    mat4 view = mat4(mat3(u_View));
+    vec4 pos = u_Projection * view * vec4(a_Position, 1.0);
+    gl_Position = pos.xyww;
+}
 \end{lstlisting}
 
-\indent \tbf{增设新顶点}:
-遍历{\codefont prev\_mesh}中的所有边{\codefont e},对于每一条边,如果它没有对偶半边,则说明它是边界边,新顶点的位置即边的终点,代码如下:
+\indent 然后是片段着色器的实现.其余部分已经给出,只需要补充天空盒的着色部分即可.考虑到环境贴图的采样方向为视线方向关于法线的反射方向,因此用\code{reflect}函数来计算反射方向并在\code{u\_EnvironmentMap}中采样,然后乘以环境光系数\code{u\_EnvironmentScale}后累加到最终颜色\code{total}:
 \begin{lstlisting}[language=C++]
-std::size_t start     = e->From();
-std::size_t end       = e->To();
-glm::vec3   new_v_pos = 0.5f * prev_mesh.Positions[start] + 0.5f * prev_mesh.Positions[end];
-curr_mesh.Positions.push_back(new_v_pos);
+void main() {
+    ...
+    // your code here
+    total += texture(u_EnvironmentMap, reflect(viewDir, normal)).xyz * u_EnvironmentScale;
+    ...
+}
 \end{lstlisting}
-如果它有对偶半边,则按照下面的公式计算新顶点的位置:
-\[\vec{v}^\ast=\frac{3}{8}(\vec{v}_1+\vec{v}_2)+\frac{1}{8}(\vec{v}_3+\vec{v}_4)\]
-其中$\vec{v}_1,\vec{v}_2$是边的两个端点,$\vec{v}_3,\vec{v}_4$是与该边(及其对偶边)相对的顶点,可以用{\codefont e->OppositeVertex()}获取.代码如下:
+\subsection*{实现效果}
+\begin{figure}[H]
+    \centering
+    \subfigure[对\code{Teapot}场景的环境映射效果]{
+        \includegraphics[scale=0.12]{figure/Environment-Teapot.png}
+    }\qquad\qquad
+    \subfigure[对\code{Bunny}场景的环境映射效果]{
+        \includegraphics[scale=0.12]{figure/Environment-Bunny.png}
+    }
+    \caption{环境映射的渲染效果}
+\end{figure}
+\section*{Task 3: Non-Photorealistic Rendering}
+\subsection*{原理与代码实现}
+按照Gooch着色模型,取定冷色$k_{c}$和暖色$k_w$,物体上各点的颜色通过插值得到:
+\[k=\left(\dfrac{1+\vec{l}\cdot\vec{n}}{2}\right)k_c+\left(\dfrac{1-\vec{l}\cdot\vec{n}}{2}\right)k_w\]
+其中$\vec{l}$是物体上的点指向光源的方向, $\vec{n}$是该点表面法线的方向.为了实现分段的效果,需要对系数进行离散化处理,代码如下:
 \begin{lstlisting}[language=C++]
-std::size_t start      = e->From();
-std::size_t end        = e->To();
-std::size_t opposite_1 = e->OppositeVertex();
-std::size_t opposite_2 = eTwin->OppositeVertex();
-glm::vec3   new_v_pos  = 0.375f * (prev_mesh.Positions[start] + prev_mesh.Positions[end])
-    + 0.125f * (prev_mesh.Positions[opposite_1] + prev_mesh.Positions[opposite_2]);
-curr_mesh.Positions.push_back(new_v_pos);
-\end{lstlisting}
-最后按照原有顶点和新增设顶点的几何关系,将新的三角形面片加入{\codefont curr\_mesh}中.代码如下:
-\begin{lstlisting}[language=C++]
-std::uint32_t toInsert[4][3] = {
+vec3 Shade (vec3 lightDir, vec3 normal) {
     // your code here:
-    { v0, m2, m1 }, { v1, m0, m2 },
-    { v2, m1, m0 }, { m0, m1, m2 }
-};
-\end{lstlisting}
-\paragraph{实现效果}
-对立方体{\codefont cube.obj}分别进行一次和三次细分的结果如下:
-\begin{figure}[H]
-    \centering
-    \subfigure[迭代次数$=1$]{
-        \includegraphics[scale=0.09]{figure/Subdivision-Cube-1.png}
-    }\qquad\qquad
-    \subfigure[迭代次数$=3$]{
-        \includegraphics[scale=0.09]{figure/Subdivision-Cube-3.png}
-    }
-    \caption{对{\codefont cube.obj}进行Loop Mesh Subdivision的结果}
-\end{figure}
-对其他模型进行三次细分的结果如下:
-\begin{figure}[H]
-    \centering
-    \subfigure[模型{\codefont block.obj}]{
-        \includegraphics[scale=0.09]{figure/Subdivision-Block-3.png}
-    }\qquad\qquad
-    \subfigure[模型{\codefont dinosaur.obj}]{
-        \includegraphics[scale=0.09]{figure/Subdivision-Dinosaur-3.png}
-    }\qquad\qquad
-    \subfigure[模型{\codefont fandisk.obj}]{
-        \includegraphics[scale=0.09]{figure/Subdivision-Fandisk-3.png}
-    }
-    \subfigure[模型{\codefont rocker.obj}]{
-        \includegraphics[scale=0.09]{figure/Subdivision-Rocker-3.png}
-    }\qquad\qquad
-    \subfigure[模型{\codefont arma.obj}]{
-        \includegraphics[scale=0.09]{figure/Subdivision-Arma-3.png}
-    }
-    \caption{对其他模型进行Loop Mesh Subdivision的结果}
-\end{figure}
-\section*{Task 2: Spring-Mass Mesh Parameterization}
-\paragraph{实现方法}
-按照下面的步骤进行.\\
-\indent 首先需要遍历图形上的顶点,用{\codefont v->OnBoundary()}方法找到一个边界上的点,其序号保存为{\codefont start}.
-\begin{lstlisting}[language=C++]
-std::size_t start = 0;
-DCEL::VertexProxy const * v = G.Vertex(start);
-while (! v->OnBoundary() && start < input.Positions.size()) {
-    start++;
-    DCEL::VertexProxy const * v = G.Vertex(start);
-} start--;
-\end{lstlisting}
-\indent 从{\codefont start}出发,沿着边界遍历图形,将边界上顶点的序号按顺序存入{\codefont boundary}中.然后将剩余点(即图形内部的点)的序号存入{\codefont inside}中,并建立一个映射{\codefont inside\_index},将原图形中的顶点序号映射到{\codefont inside}中的序号,方便后面线性方程的求解.代码如下:
-\begin{lstlisting}[language=C++]
-std::vector<std::size_t> boundary, inside, inside_index(input.Positions.size(), 0);
-boundary.push_back(start);
-while (1) {
-    DCEL::VertexProxy const * v = G.Vertex(boundary.back());
-    std::pair<std::uint32_t, std::uint32_t> boundary_v_neighbors = v->BoundaryNeighbors();
-    if (boundary_v_neighbors.first == start) break;
-    boundary.push_back(boundary_v_neighbors.first);
+    lightDir = normalize(lightDir);
+    normal = normalize(normal);
+    float t = dot(-lightDir, normal);
+    float t_Cool = (1.0 + t) / 2.0;
+    if (t_Cool > 0.6) t_Cool = 1.0;
+    else if (t_Cool < 0.25) t_Cool = 0.0;
+    else t_Cool = 0.5;
+    float t_Warm = 1 - t_Cool;
+    return t_Cool * u_CoolColor + t_Warm * u_WarmColor;
 }
-for (std::size_t i = 0; i < input.Positions.size(); ++i) {
-    if (std::find(boundary.begin(), boundary.end(), i) == boundary.end()) {
-        inside_index[i] = inside.size(); inside.push_back(i);
-    }
-}
-\end{lstlisting}
-现在将边界点映射到$[0,1]\times[0,1]$的圆上.首先将各个边界边的长度当作圆的弧长以计算边界的周长{\codefont perimeter}.用{\codefont theta}变量记录当前点在圆上的角度,每次增加的角度为边的长度{\codefont boundary\_length[i]}与周长{\codefont perimeter}的比值乘以$2\pi$.代码如下:
-\begin{lstlisting}[language=C++]
-std::size_t        boundary_v_num = boundary.size(), inside_v_num = inside.size();
-float              perimeter = glm::length(input.Positions[boundary[0]] - input.Positions[boundary.back()]);
-std::vector<float> boundary_length;
-for (std::size_t i = 1; i < boundary_v_num; ++i) {
-    boundary_length.push_back(glm::length(input.Positions[boundary[i]] - input.Positions[boundary[i - 1]]));
-    perimeter += boundary_length.back();
-}
-float theta             = 1.1f;
-for (std::size_t i = 0; i < boundary_v_num; ++i) {
-    output.TexCoords[boundary[i]] = {
-        0.5f + 0.5f * std::cos(theta),
-        0.5f + 0.5f * std::sin(theta),
-    };
-    theta += boundary_length[i] / perimeter * 2 * 3.14159265359;
-}
-\end{lstlisting}
-对于内部点的$uv$坐标$\vec{t}_i$,需要求解线性方程组,并将系数按照平均系数设置系数:
-\[\vec{t}_i-\dfrac{1}{n}\sum_{\vec{t}_j\in\Omega\left(\vec{t}_i\right)}\vec{t}_j=\mbf{0}\]
-如果$\vec{t}_j$是内部点,需要将系数矩阵{\codefont A}的对应位置(这个位置可以由$\vec{t}_j$在{\codefont inside\_index}中的索引得到)设为$-1/n$;如果是边界点,则需要将前面计算出的$uv$坐标乘以$1/n$后加入到系数向量{\codefont b}中,以此求解方程$\mat{A}\vec{x}=\vec{b}$.代码如下:
-\begin{lstlisting}[language=C++]
-std::vector<std::vector<float>> A(inside_v_num, std::vector<float>(inside_v_num, 0.0f));
-std::vector<glm::vec2>          x(inside_v_num, { 0.0f, 0.0f }), b(inside_v_num, { 0.0f, 0.0f });
-for (std::size_t i = 0; i < inside_v_num; ++i) {
-    DCEL::VertexProxy const * v                  = G.Vertex(inside[i]);
-    std::vector<uint32_t>     inside_v_neighbors = v->Neighbors();
-    std::size_t               n                  = inside_v_neighbors.size();
-    A[i][i]                                      = 1.0f;
-    for (auto j : inside_v_neighbors) {
-        float                     lambda_v = 1.0f / n;
-        DCEL::VertexProxy const * u        = G.Vertex(j);
-        if (u->OnBoundary()) {
-            b[i] += lambda_v * output.TexCoords[j];
-        } else {
-            A[i][inside_index[j]] = -lambda_v;
-        }
-    }
-}
-\end{lstlisting}
-最后按照Gauss-Seidel方法求解线性方程组.代码如下:
-\begin{lstlisting}[language=C++]
-for (int k = 0; k < numIterations; ++k) {
+
+void main() {
     // your code here:
-    for (std::size_t i = 0; i < inside_v_num; ++i) {
-        glm::vec2 delta { 0.0f };
-        for (std::size_t j = 0; j < inside_v_num; ++j) {
-            if (j != i) delta += A[i][j] * x[j];
-        }
-        x[i] = b[i] - delta;
-    }
+    float gamma = 2.2;
+    vec3 total = Shade(u_Lights[0].Direction, v_Normal);
+    f_Color = vec4(pow(total, vec3(1. / gamma)), 1.);
 }
 \end{lstlisting}
-\paragraph{实现效果}
-迭代次数$iter=0,50,1000$的结果分别如下:
+\subsection*{实现效果}
+\begin{figure}[H]\centering
+\includegraphics[scale=0.12]{figure/Nonpho.png}
+\caption{Gooch着色模型的渲染效果}
+\end{figure}
+\subsection*{问题回答}
+\begin{enumerate}[leftmargin=*,label=\tbf{\arabic*.}]
+    \item 参考\code{Labs/3-Rendering/CaseNonPhoto.cpp}中的\code{OnRender}函数,代码是如何分别渲染模型的反面和正面的?\\
+    \textit{答}: \code{OnRender}函数进行了两次渲染;第一次渲染时启用了面剔除去掉了模型的正面,然后渲染模型的背面;第二次渲染时剔除了模型的背面,并启用深度测试,按照正常的着色办法渲染模型的正面.
+    \item \code{npr-line.vert}中为什么不简单将每个顶点在世界坐标中沿着法向移动一些距离来实现轮廓线的渲染?这样会导致什么问题?\\
+    \textit{答}: 由于世界坐标到屏幕的映射是非线性的,因此在世界坐标中移动相同距离,可能在屏幕坐标上移动的距离就有差别,这会导致绘制的轮廓线粗细不均.
+\end{enumerate}
+\section*{Task 4: Shadow Mapping}
+\subsection*{原理与代码实现}
+只需在正常的渲染流程中增加阴影贴图的采样和比较即可.由于深度贴图的值是存储在$[0,1]$区间内的,因此需要在比较之前将其还原至真实值.代码如下(\code{Shade}函数采用Bliin-Phong模型,与前面的相同,这里不再给出.):
+\begin{lstlisting}[language=C++]
+float Shadow(vec3 pos, vec3 lightPos) {
+    // return 1. if point in shadow, else return 0.
+    vec3 toLight = pos - lightPos;
+
+    // your code here: closestDepth = ?
+    float closestDepth = texture(u_ShadowCubeMap, toLight).r * u_FarPlane;
+    // your code end
+
+    float curDepth = length(toLight);
+    float bias = 5.;
+    float shadow = curDepth - bias > closestDepth ? 1.0 : 0.0;
+    return shadow;
+}
+\end{lstlisting}
+\begin{lstlisting}[language=C++]
+float Shadow(vec4 lightSpacePosition, vec3 normal, vec3 lightDir) {
+    // return 1. if point in shadow, else return 0.
+    vec3 pos = lightSpacePosition.xyz / lightSpacePosition.w;
+    pos = pos * 0.5 + 0.5;
+
+    // your code here: closestDepth = ?
+    float closestDepth = texture(u_ShadowMap, pos.xy).r;
+    // your code end
+
+    float curDepth = pos.z;
+    float bias = max(1e-3 * (1.0 - dot(normal, lightDir)), 1e-4);
+    float shadow = (curDepth - bias > closestDepth ? 1.0 : 0.0);
+    if (pos.z > 1.0 || pos.x < 0. || pos.x > 1. || pos.y < 0. || pos.y > 1.) shadow = 0.0;
+    return shadow;
+}
+\end{lstlisting}
+注意到在普通阴影贴图中已经通过\code{vec3 pos = lightSpacePosition.xyz / lightSpacePosition.w; pos = pos * 0.5 + 0.5;}语句对深度归一化,因此后续直接用深度贴图的值比较;在立方体的阴影贴图中,深度值没有经过归一化,因此深度贴图的值需要乘以远裁剪面距离\code{u\_FarPlane}再与真实深度比较.
+\subsection*{实现效果}
 \begin{figure}[H]
     \centering
-    \subfigure[迭代次数$=0$]{
-        \includegraphics[scale=0.09]{figure/Parameterization-0.png}
+    \subfigure[对\code{teapot}场景进行阴影映射的效果]{
+        \includegraphics[scale=0.12]{figure/Shadow-Teapot.png}
     }\qquad\qquad
-    \subfigure[迭代次数$=50$]{
-        \includegraphics[scale=0.09]{figure/Parameterization-50.png}
-    }\qquad\qquad
-    \subfigure[迭代次数$=1000$]{
-        \includegraphics[scale=0.09]{figure/Parameterization-1000.png}
+    \subfigure[对\code{box}场景进行阴影映射的效果]{
+        \includegraphics[scale=0.12]{figure/Shadow-Box.png}
     }
-    \caption{对人脸模型进行Spring-Mass Mesh Parameterization的结果}
+    \subfigure[对\code{oak}场景进行阴影映射的效果]{
+        \includegraphics[scale=0.12]{figure/Shadow-Oak.png}
+    }\qquad\qquad
+    \subfigure[对\code{sponza}场景进行阴影映射的效果]{
+        \includegraphics[scale=0.12]{figure/Shadow-Sponza.png}
+    }
+    \caption{阴影映射的效果}
 \end{figure}
-\section*{Task 3: Mesh Simplification}
-\paragraph{实现方法}
-按照下面的步骤进行.由于计算精度要求比较高,在程序中统一使用\code{double}类型的矩阵和向量进行运算.\\
-\indent 首先计算面$f$的误差矩阵$\mat{K}_p$.文献中给出的定义为:对于给定的面$f$,其平面方程为$ax+by+cz+d=0$,即向量$\vec{p}=\begin{pmatrix}
-    a&b&c&d
-\end{pmatrix}^{\text{t}}$, $f$的代价矩阵$\mat{K}_p$定义为$\vec{p}$的外积.\\
-\indent 注意到上述平面的法向量$\vec{n}$恰为$(a,b,c)$(注意单位化),这可以由三角形两边$\vec{e}_1$和$\vec{e}_2$的叉积得到.而$d$可以由点法式平面方程$d=-\vec{n}\cdot\vec{v}$得到,其中$\vec{v}$为三角形的一个顶点.用{\codefont glm}库中的各种向量运算功能即可完成上述过程,代码如下:
-\begin{lstlisting}[language=C++]
-auto UpdateQ {
-    [&G, &output](DCEL::Triangle const * f) -> glm::dmat4 {
-        // your code here:
-        glm::dvec3 v0 = output.Positions[f->VertexIndex(0)], v1 = output.Positions[f->VertexIndex(1)], v2 = output.Positions[f->VertexIndex(2)];
-        glm::dvec3 e1 = v1 - v0, e2 = v2 - v0;
-        glm::dvec3 n = glm::normalize(glm::cross(e1, e2));
-        glm::dvec4 p = { n.x, n.y, n.z, -glm::dot(n, v0) };
-        return glm::outerProduct(p, p);
-    }
-};
-\end{lstlisting}
-然后是{\codefont MakePair}函数的实现,主要是对于合法的顶点对$\left(\vec{v}_1,\vec{v}_2\right)$求解最优坍缩位置$\vec{v}$,和代价$\Delta(\vec{v})$.首先考虑矩阵$\mat{q}$定义为
-\[\mat{q}=\begin{bmatrix}
-    q_{11}&q_{12}&q_{13}&q_{14}\\
-    q_{12}&q_{22}&q_{23}&q_{24}\\
-    q_{13}&q_{23}&q_{33}&q_{34}\\
-    0&0&0&1
+\subsection*{问题回答}
+\begin{enumerate}[leftmargin=*,label=\tbf{\arabic*.}]
+    \item 想要得到正确的深度,有向光源和点光源应该分别使用什么样的投影矩阵计算深度贴图?\\
+    \textit{答}: 有向光源是平行光,因此应该使用正交投影矩阵计算深度贴图;点光源的光线汇聚于一点,因此应该使用透视投影矩阵计算深度贴图.
+    \item 为什么\code{phong-shadow.vert}和\code{phong-shadow.frag}中没有计算像素深度,但是能够得到正确的深度值?\\
+    \textit{答}: 通过将顶点坐标乘以光源视角投影矩阵,把每个顶点的坐标转换到以光源视角下的标准设备坐标,已经求得了深度值.
+\end{enumerate}
+\section*{Task 5: Whitted-Style Ray Tracing}
+\subsection*{原理与代码实现}
+首先是光线与三角形求交的实现,原理如下:
+对于三角形上任意一点$\vec{t}(u,v)$,其满足
+\[\vec{t}(u,v)=(1-u-v)\vec{v}_0+u\vec{v}_1+v\vec{v}_2\]
+这里的$u,v$即为点在三角形中的重心坐标,满足$u\geq0,v\geq0$且$u+v\leq1$.将上述方程与光线方程联立,可得
+\[\vec{o}+t\vec{d}=(1-u-v)\vec{v}_0+u\vec{v}_1+v\vec{v}_2\]
+整理后得到
+\[-t\vec{d}+u(\vec{v}_1-\vec{v}_0)+v(\vec{v}_2-\vec{v}_0)=\vec{o}-\vec{v}_0\]
+这一线性方程组的矩阵形式为
+\[\begin{bmatrix}
+    -\vec{d}&\vec{v}_1-\vec{v}_0&\vec{v}_2-\vec{v}_0
+\end{bmatrix}\begin{bmatrix}
+    t\\u\\v
+\end{bmatrix}=\vec{o}-\vec{v}_0\]
+令
+\[\vec{D}=\vec{d},\quad\vec{E}_1=\vec{v}_1-\vec{v}_0,\quad\vec{E}_2=\vec{v}_2-\vec{v}_0,\quad\vec{T}=\vec{o}-\vec{v}_0\]
+根据Cramer法则可知线性方程组的解为
+\[\begin{bmatrix}
+    t\\u\\v
+\end{bmatrix}=\dfrac{1}{\det\begin{bmatrix}
+    -\vec{D}&\vec{E}_1&\vec{E}_2
+\end{bmatrix}}\begin{bmatrix}
+    \det\begin{bmatrix}
+        \vec{T}&\vec{E}_1&\vec{E}_2
+    \end{bmatrix}\\[6pt]
+    \det\begin{bmatrix}
+        -\vec{D}&\vec{T}&\vec{E}_2
+    \end{bmatrix}\\[6pt]
+    \det\begin{bmatrix}
+        -\vec{D}&\vec{E}_1&\vec{T}
+    \end{bmatrix}
 \end{bmatrix}\]
-其中$q_{ij}$是输入矩阵$\mat{Q}$的元素(这里注意在{\codefont glm::mat4}中矩阵元素是按列优先存储的,修改元素时需要注意).计算$\mat{q}$的行列式判断其可逆性.如果$\mat{q}$可逆,就按照
-\[\vec{v}=\mat{q}^{-1}\begin{pmatrix}
-    0&0&0&1
-\end{pmatrix}^{\text{t}}\]
-计算得到最优坍缩位置$\vec{v}$;否则就将$\vec{v}$设为$\vec{v}_1,\vec{v}_2$的中点.最后,坍缩位置的代价为二次型(这里对于两种情况下,计算代价都应该用输入的矩阵$\mat{Q}$来计算,而不是用$\mat{q}$,否则会导致错误):
-\[\Delta(\vec{v})=\vec{v}\mat{Q}\vec{v}^{\text{t}}\]
-最后将各要素合并并返回.代码如下:
+即
+\[\begin{bmatrix}
+    t\\u\\v
+\end{bmatrix}=\dfrac{1}{(\vec{D}\times\vec{E}_2)\cdot\vec{E}_1}\begin{bmatrix}
+    (\vec{T}\times\vec{E}_1)\cdot\vec{E}_2\\
+    (\vec{D}\times\vec{E}_2)\cdot\vec{T}\\
+    (\vec{T}\times\vec{E}_1)\cdot\vec{D}
+\end{bmatrix}\]
+令$\vec{P}=\vec{D}\times\vec{E}_2,\vec{Q}=\vec{T}\times\vec{E}_1$,则有
+\[t=\dfrac{\vec{Q}\cdot\vec{E}_2}{\vec{P}\cdot\vec{E}_1},\quad u=\dfrac{\vec{P}\cdot\vec{T}}{\vec{P}\cdot\vec{E}_1},\quad v=\dfrac{\vec{Q}\cdot\vec{D}}{\vec{P}\cdot\vec{E}_1}\]
+最后判断$u\geq0,v\geq0,u+v\leq1$且$t\geq0$即可确定光线与三角面片是否相交,如果相交则交点为$\vec{r}(t)=\vec{o}+t\vec{d}$,在三角面片上的重心坐标为$(u,v)$.\\
+\indent 上述过程的算法流程如下:
+\begin{enumerate}[label=\tbf{\arabic*.}]
+    \item 按照定义计算辅助向量$\vec{D},\vec{E}_1,\vec{E}_2,\vec{T},\vec{P},\vec{Q}$.
+    \item 判断行列式$\vec{P}\cdot\vec{E}_1$是否接近于0,如果是则光线与三角面片平行,不相交.
+    \item 计算参数$t,u,v$的值.
+    \item 判断$u\geq0,v\geq0,u+v\leq1$且$t\geq0$是否成立,如果成立则光线与三角面片相交,否则不相交.
+\end{enumerate}
+上述过程的代码实现如下:
 \begin{lstlisting}[language=C++]
-static constexpr auto MakePair {
-    [](DCEL::HalfEdge const * edge,
-       glm::dvec3 const &     p1,
-       glm::dvec3 const &     p2,
-       glm::dmat4 const &     Q) -> ContractionPair {
-        // your code here:
-        ContractionPair result {};
-        result.edge = edge;
-        glm::dmat4 q = Q;
-        q[0][3] = 0; q[1][3] = 0; q[2][3] = 0; q[3][3] = 1;
-        if (glm::determinant(q) >= 0.001 || glm::determinant(q) <= -0.001) {
-            result.targetPosition = glm::inverse(q) * (glm::dvec4 { 0, 0, 0, 1 });
-        } else { result.targetPosition = { 0.5 * (p1 + p2), 1.0 }; }
-        result.cost = glm::dot(result.targetPosition, Q * result.targetPosition);
-        return result;
-    }
-};
-\end{lstlisting}
-
-\indent 在主循环中实现坍缩后首先需要更新误差矩阵表{\codefont Qv}.遍历新顶点的环{\codefont ring}中的边{\codefont e},那么所有面片即为{\codefont f=e->Face()}.对于{\codefont e}的起点和终点,它们的误差矩阵中只有{\codefont f}贡献的部分需要修改,新的量为{\codefont UpdateQ(f)},原来的量为{\codefont Kf[G.IndexOf(f)]}.对于{\codefont v1}只需加上{\codefont UpdateQ(f)}即可.全部修改完成后需要更新{\codefont Kf}中对应的元素.代码如下:
-\begin{lstlisting}[language=C++]
-for (auto e : ring) {
-    // your code here:
-    //     1. Compute the new Kp matrix for $e->Face()$.
-    //     2. According to the difference between the old Kp (in $Kf$) and the new Kp (computed in step 1),
-    //        update Q matrix of each vertex on the ring (update $Qv$).
-    //     3. Update Q matrix of vertex v1 as well (update $Qv$).
-    //     4. Update $Kf$.
-    auto f      = e->Face(); auto Q      = UpdateQ(f);
-    auto modify = Q - Kf[G.IndexOf(f)];
-    Qv[e->From()] += modify; Qv[e->To()] += modify; Qv[v1] += Q;
-    Kf[G.IndexOf(f)] = Q;
-}
-\end{lstlisting}
-
-\indent 最后需要更新所有代价矩阵被修改的顶点(即{\codefont v1}所有邻居顶点{\codefont v})所连的边.同样地,遍历{\codefont v}周围的环{\codefont ring\_out}上的边{\codefont e\_out},它的下一条边{\codefont e\_modify = e\_out->PrevEdge()}就是需要修改的边.在修改时需要注意如果改动后不能保持空间拓扑性则需要删除该顶点对.代码如下:
-\begin{lstlisting}[language=C++]
-// Finally, as the Q matrix changed, we should update the relative $ContractionPair$ in $pairs$.
-// Any pair with the Q matrix of its endpoints changed, should be remade by $MakePair$.
-// your code here:
-for (auto e : ring) {
-    auto v        = e->From();
-    auto ring_out = (G.Vertex(v))->Ring();
-    for (auto e_out : ring_out) {
-        auto v_out    = e_out->From();
-        auto e_modify = e_out->PrevEdge();
-        if (! G.IsContractable(e_modify)) {
-            pairs[pair_map[G.IndexOf(e_modify)]].edge = nullptr;
-        } else {
-            pairs[pair_map[G.IndexOf(e_modify)]] = MakePair(e_modify, output.Positions[v], output.Positions[v_out], Qv[v] + Qv[v_out]);
-        }
-    }
-}
-\end{lstlisting}
-\paragraph{实现效果}
-对立方体{\codefont sphere.obj}进行简化的结果如下:
-\begin{figure}[H]
-    \centering
-    \subfigure[迭代次数$=2$]{
-        \includegraphics[scale=0.09]{figure/Simplification-Sphere-2.png}
-    }\qquad\qquad
-    \subfigure[迭代次数$=4$]{
-        \includegraphics[scale=0.09]{figure/Simplification-Sphere-4.png}
-    }\qquad\qquad
-    \caption{对{\codefont sphere.obj}进行Mesh Simplification的结果}
-\end{figure}
-对{\codefont rocker.obj}进行简化的结果如下:
-\begin{figure}[H]
-    \centering
-    \subfigure[迭代次数$=2$]{
-        \includegraphics[scale=0.09]{figure/Simplification-Rocker-2.png}
-    }\qquad\qquad
-    \subfigure[迭代次数$=4$]{
-        \includegraphics[scale=0.09]{figure/Simplification-Rocker-4.png}
-    }\qquad\qquad
-    \caption{对{\codefont rocker.obj}进行Mesh Simplification的结果}
-\end{figure}
-对其他模型进行简化的结果如下(迭代次数$=4$):
-\begin{figure}[H]
-    \centering
-    \subfigure[模型{\codefont fandisk.obj}]{
-        \includegraphics[scale=0.09]{figure/Simplification-Fandisk-4.png}
-    }\qquad\qquad
-    \subfigure[模型{\codefont arma.obj}]{
-        \includegraphics[scale=0.09]{figure/Simplification-Arma-4.png}
-    }
-    \caption{对其他模型进行Mesh Simplification的结果}
-\end{figure}
-\section*{Task 4: Mesh Smoothing}
-\paragraph{实现方法}
-按照下面的步骤进行.\\
-\indent 首先对于给定角$\theta$的顶点{\codefont vAngle}和两边上的点{\codefont v1,v2},按照下面的方法计算其余切值:
-\[\cot\theta=\dfrac{\cos\theta}{\sin\theta}=\dfrac{\vec{e}_1\cdot\vec{e}_2}{||\vec{e}_1\times\vec{e}_2||}\]
-其中$\vec{e}_1,\vec{e}_2$分别为角的两边.得到结果后,为避免后续计算出现极端的数值,需通过{\codefont std::clamp}函数将其限制在$[0.1,5]$内.代码如下:
-\begin{lstlisting}[language=C++]
-static constexpr auto GetCotangent {
-    [](glm::vec3 vAngle, glm::vec3 v1, glm::vec3 v2) -> float {
-        // your code here:
-        glm::vec3   u         = v1 - vAngle;
-        glm::vec3   v         = v2 - vAngle;
-        float       cross_len = glm::length(glm::cross(u, v));
-        return std::clamp(glm::dot(u, v) / cross_len, 0.1f, 5.0f);
-    }
-};
-\end{lstlisting}
-然后按照实现方法的不同分别进行新顶点的运算位置的运算,代码如下:
-\begin{lstlisting}[language=C++]
-for (std::uint32_t iter = 0; iter < numIterations; ++iter) {
-    Engine::SurfaceMesh curr_mesh = prev_mesh;
-    for (std::size_t i = 0; i < input.Positions.size(); ++i) {
-        // your code here: curr_mesh.Positions[i] = ...
-        auto v = G.Vertex(i);
-        auto      neighbors = v->Neighbors();
-        int       n         = neighbors.size();
-        glm::vec3 sum { 0.0f };
-        if (useUniformWeight) {
-            for (std::size_t j = 0; j < n; ++j) sum += prev_mesh.Positions[neighbors[j]];
-            sum = (1.0f / n) * sum;
-        } else {
-            auto ring = v->Ring();
-            float sum_w = 0.0f;
-            for (auto e_ring : ring) {
-                auto e = e_ring->NextEdge();
-                std::vector<glm::vec3> pos(4, glm::vec3 { 0.0f });
-                pos[0] = prev_mesh.Positions[e->To()];
-                pos[1] = prev_mesh.Positions[e->From()];
-                pos[2] = prev_mesh.Positions[e->NextEdge()->To()];
-                pos[3] = prev_mesh.Positions[e->TwinEdge()->PrevEdge()->From()];
-                float w = GetCotangent(pos[2], pos[0], pos[1]) + GetCotangent(pos[3], pos[0], pos[1]);
-                sum_w += w;
-                sum += w * (pos[1]);
-            }
-            sum /= sum_w;
-        }
-        curr_mesh.Positions[i] = (1 - lambda) * prev_mesh.Positions[i] + lambda * sum;
-    }
-    // Move curr_mesh to prev_mesh.
-    prev_mesh.Swap(curr_mesh);
-}
-\end{lstlisting}
-\paragraph{实现效果}
-下面都采用$\lambda=0.5$.\\
-对{\codefont block.obj}进行Uniform Laplacian平滑的结果如下:
-\begin{figure}[H]
-    \centering
-    \subfigure[迭代次数$=5$]{
-        \includegraphics[scale=0.09]{figure/Smooth-Uniform-Block-5.png}
-    }\qquad\qquad
-    \subfigure[迭代次数$=10$]{
-        \includegraphics[scale=0.09]{figure/Smooth-Uniform-Block-10.png}
-    }
-    \caption{对{\codefont block.obj}进行Uniform Laplacian Mesh Smoothing的结果}
-\end{figure}
-对{\codefont block.obj}进行Cotangent Laplacian平滑的结果如下:
-\begin{figure}[H]
-    \centering
-    \subfigure[迭代次数$=5$]{
-        \includegraphics[scale=0.09]{figure/Smooth-Cot-Block-5.png}
-    }\qquad\qquad
-    \subfigure[迭代次数$=10$]{
-        \includegraphics[scale=0.09]{figure/Smooth-Cot-Block-10.png}
-    }
-    \caption{对{\codefont block.obj}进行Cotangent Laplacian Mesh Smoothing的结果}
-\end{figure}
-对其它图形进行Uniform Laplacian平滑的结果如下:
-\begin{figure}[H]
-    \centering
-    \subfigure[模型{\codefont dinosaur.obj},迭代次数$=10$]{
-        \includegraphics[scale=0.09]{figure/Smooth-Uniform-Dinosaur-10.png}
-    }\qquad\qquad
-    \subfigure[模型{\codefont fandisk.obj},迭代次数$=10$]{
-        \includegraphics[scale=0.09]{figure/Smooth-Uniform-Fandisk-10.png}
-    }\qquad\qquad
-    \subfigure[模型{\codefont rocker.obj},迭代次数$=10$]{
-        \includegraphics[scale=0.09]{figure/Smooth-Uniform-Rocker-10.png}
-    }
-    \caption{对其他模型进行Uniform Laplacian Mesh Smoothing的结果}
-\end{figure}
-对其它图形进行Cotangent Laplacian平滑的结果如下:
-\begin{figure}[H]
-    \centering
-    \subfigure[模型{\codefont dinosaur.obj},迭代次数$=10$]{
-        \includegraphics[scale=0.09]{figure/Smooth-Cot-Dinosaur-10.png}
-    }\qquad\qquad
-    \subfigure[模型{\codefont fandisk.obj},迭代次数$=10$]{
-        \includegraphics[scale=0.09]{figure/Smooth-Cot-Fandisk-10.png}
-    }\qquad\qquad
-    \subfigure[模型{\codefont rocker.obj},迭代次数$=10$]{
-        \includegraphics[scale=0.09]{figure/Smooth-Cot-Rocker-10.png}
-    }
-    \caption{对其他模型进行Cotangent Laplacian Mesh Smoothing的结果}
-\end{figure}
-\section*{Task 5: Marching Cubes}
-\paragraph{实现方法}
-按照下面的步骤进行.\\
-\indent 首先建立四维数组{\codefont grid[x][y][z][w]}来存储网格中以$(x,y,z)$(这里是序号而非实际位置)为起点的,方向为$w$(取值为$0,1,2$,含义与{\codefont unit}矩阵定义的方向向量相同)的边上的点在{\codefont output.Positions}中的序号,并将其初值赋值为$-1$以标记该点不在Mesh中.\\
-\indent 然后逐个处理体素.根据每个体素,先计算各顶点的位置储存在{\codefont v\_pos}中,然后按照约定计算体素形式对应的二进制数{\codefont v\_hash}.\\
-\indent 按照{\codefont v\_hash}根据{\codefont c\_EdgeStateTable}得到关于边上有无顶点的二进制数{\codefont e\_hash},然后根据{\codefont e\_hash}判断第$j$条边$e_j$上是否有顶点.如果有,则根据线性插值计算该顶点的位置,并查询{\codefont grid}数组中该位置是否已经存在该顶点,如果不存在则将其加入{\codefont output.Positions}中,并将其序号存入{\codefont grid}中,然后将该顶点的序号存入{\codefont idx\_e}中便于下一步的面的构造.\\
-\indent 最后,按照{\codefont v\_hash}根据{\codefont c\_EdgeStateTable}得到关于体素内三角形面的信息,然后按照{\codefont idx\_e}的索引将对应的边存入{\codefont output.Indices}中即可.\\
-\indent 上述过程的代码如下(只给出了循环体内的代码):
-\begin{lstlisting}[language=C++]
-std::vector<glm::vec3> v_pos(8, glm::vec3 { 0.0f });
-v_pos[0] = grid_min + glm::vec3 { nx * dx, ny * dx, nz * dx };
-for (int i = 0; i < 8; ++i) {
-    v_pos[i] = v_pos[0] + dx * glm::vec3 { (i & 1), ((i >> 1) & 1), (i >> 2) };
-}
-int v_hash = 0;
-for (int i = 7; i >= 0 ; --i) {
-    v_hash += (sdf(v_pos[i]) > 0) ? 1 : 0;
-    v_hash *= 2;
-}
-v_hash /= 2;
-int e_hash = c_EdgeStateTable[v_hash];
-std::vector<int> idx_e(12, -1);
-for (int j = 0; j < 12; ++j) {
-    if (e_hash % 2 == 1) {
-        glm::vec3 v_start, v_end, v_new;
-        int       d[3]           = { 0, 0, 0 };
-        d[((j >> 2) + 1) % 3]    = j & 1;
-        d[((j >> 2) + 2) % 3]    = (j >> 1) & 1;
-        if (grid[nx + d[0]][ny + d[1]][nz + d[2]][j >> 2] == -1) {
-            v_start = v_pos[0] + dx * glm::vec3 { (float) d[0], (float) d[1], (float) d[2] };
-            v_end = v_start + dx * unit[j >> 2];
-            v_new = (sdf(v_end) * v_start - sdf(v_start) * v_end) / (sdf(v_end) - sdf(v_start));
-            grid[nx + d[0]][ny + d[1]][nz + d[2]][j >> 2] = output.Positions.size();
-            output.Positions.push_back(v_new);
-        }
-        idx_e[j] = grid[nx + d[0]][ny + d[1]][nz + d[2]][j >> 2];
-    }
-    e_hash /= 2;
-}
-for (int k = 0; k < 5; ++k) {
-    int e0 = c_EdgeOrdsTable[v_hash][3 * k], e1 = c_EdgeOrdsTable[v_hash][3 * k + 1], e2 = c_EdgeOrdsTable[v_hash][3 * k + 2];
-    if (e0 == -1) break;
+bool IntersectTriangle(Intersection & output, Ray const & ray, glm::vec3 const & p1, glm::vec3 const & p2, glm::vec3 const & p3) {
+    // your code here
+    glm::vec3 O = ray.Origin, D = ray.Direction;
+    glm::vec3 T = O - p1, E1 = p2 - p1, E2 = p3 - p1;
+    glm::vec3 P = glm::cross(D, E2), Q = glm::cross(T, E1);
+    float     d = glm::dot(P, E1);
+    if (d < 0.000001f && d > -0.000001f) return false;
+    float u = glm::dot(T, P) / d, v = glm::dot(D, Q) / d, t = glm::dot(E2, Q) / d;
+    if (u < 0 || u > 1 || v < 0 || u + v > 1) return false;
     else {
-        output.Indices.push_back(idx_e[e2]);
-        output.Indices.push_back(idx_e[e1]);
-        output.Indices.push_back(idx_e[e0]);
+        output.t = t;
+        output.u = u;
+        output.v = v;
+        return true;
     }
 }
 \end{lstlisting}
-\paragraph{实现效果}
-对球体和环分别进行重建的效果如下:
+然后是光线追踪的实现.首先需要在遍历各光源之前对结果加上环境光的贡献,然后在遍历光源时按照Blin-Phong模型计算漫反射和镜面反射的贡献.代码实现如下:
+\begin{lstlisting}[language=C++]
+result += kd * intersector.InternalScene->AmbientIntensity;
+for (const Engine::Light & light : intersector.InternalScene->Lights) {
+    glm::vec3 l;
+    float     attenuation;
+    ...
+    /******************* 2. Whitted-style ray tracing *****************/
+    // your code here
+    if (inShadow) continue;
+    glm::vec3 V = glm::normalize(-ray.Direction);
+    glm::vec3 N = glm::normalize(n);
+    glm::vec3 L = glm::normalize(l);
+    glm::vec3 H = glm::normalize(L + V);
+    result += attenuation * light.Intensity * (kd * glm::max(glm::dot(N, L), 0.0f) + ks * glm::pow(glm::max(glm::dot(H, N), 0.0f), shininess));
+}
+\end{lstlisting}
+然后是Shadow Ray的实现,在计算漫反射和镜面反射之前,需要先发射一条Shadow Ray来判断该点是否被遮挡.如果该点发出的Shadow Ray与场景中的物体相交,并且该物体的透明度$\alpha>0.2$,那么认为被遮挡;否则就循环地以该物体为起点继续发射Shadow Ray,直到没有击中任何物体为止(对于点光源,只要距离大于光源距离即可终止).代码实现如下:
+\begin{lstlisting}[language=C++]
+for (const Engine::Light & light : intersector.InternalScene->Lights) {
+    glm::vec3 l;
+    float     attenuation;
+    bool      inShadow = false;
+    /******************* 3. Shadow ray *****************/
+    if (light.Type == Engine::LightType::Point) {
+    l            = light.Position - pos;
+    float length = glm::dot(l, l);
+    attenuation  = 1.0f / glm::dot(l, l);
+    if (enableShadow) {
+        // your code here
+        auto shadowRayHit = intersector.IntersectRay(Ray(pos, glm::normalize(l)));
+        while (shadowRayHit.IntersectState && shadowRayHit.IntersectAlbedo.w < 0.2)
+            shadowRayHit = intersector.IntersectRay(Ray(shadowRayHit.IntersectPosition,
+                           glm::normalize(l)));
+        if (shadowRayHit.IntersectState) {
+            glm::vec3 sh = shadowRayHit.IntersectPosition - pos;
+            if (glm::dot(sh, sh) < length)
+                attenuation = 0.0f;
+            }
+        }
+    } else if (light.Type == Engine::LightType::Directional) {
+        l           = light.Direction;
+        attenuation = 1.0f;
+        if (enableShadow) {
+            // your code here
+            auto shadowRayHit = intersector.IntersectRay(Ray(pos, glm::normalize(l)));
+            while (shadowRayHit.IntersectState && shadowRayHit.IntersectAlbedo.w < 0.2)
+                shadowRayHit = intersector.IntersectRay(Ray(shadowRayHit.IntersectPosition, 
+                               glm::normalize(l)));
+            if (shadowRayHit.IntersectState)
+                attenuation = 0.0f;
+        }
+    }
+    /******************* 2. Whitted-style ray tracing *****************/
+    ...
+}
+\end{lstlisting}
+\subsection*{实现效果}
 \begin{figure}[H]
     \centering
-    \subfigure[网格尺寸$n=10$]{
-        \includegraphics[scale=0.08]{figure/Cube-Sphere-10.png}
+    \subfigure[对\code{floor}场景进行光线追踪的效果]{
+        \includegraphics[scale=0.12]{figure/RayTrace-Floor.png}
     }\qquad\qquad
-    \subfigure[网格尺寸$n=40$]{
-        \includegraphics[scale=0.08]{figure/Cube-Sphere-40.png}
-    }\qquad\qquad
-    \subfigure[网格尺寸$n=100$]{
-        \includegraphics[scale=0.08]{figure/Cube-Sphere-100.png}
+    \subfigure[对\code{box}场景进行光线追踪的效果]{
+        \includegraphics[scale=0.12]{figure/Raytrace-Box.png}
     }
-    \caption{对球体进行Marching Cubes重建的结果}
+    \caption{光线追踪的效果}
+\end{figure}
+\subsection*{问题回答}
+\begin{enumerate}[leftmargin=*,label=\tbf{\arabic*.}]
+    \item 光线追踪和光栅化的渲染结果有何异同?如何理解这种结果?\\
+    \textit{答}: 光线追踪能够自然地模拟光的传播路径,因此能够更真实地表现反射,折射和阴影等效果;而光栅化则是通过对场景进行投影和像素着色来生成图像,在处理复杂光照效果时可能不够准确.因此光线追踪的渲染结果通常更接近真实世界的视觉效果,而光栅化则更适合实时渲染应用.
+\end{enumerate}
+\section*{Task 5 Bonus: Spatial Acceleration}
+\subsection*{原理与代码实现}
+这里采用BVH树进行光线求交的空间加速.首先定义了三个结构体\code{Triangle}, \code{AABB}和\code{BVHNode},分别表示三角形,轴对齐包围盒和BVH树节点,以存储接下来需要用到的各种数据.
+\begin{lstlisting}[language=C++]
+struct Triangle {
+    glm::vec3 p1, p2, p3, centroid;
+    int       modelIndex, triangleIndex;
+};
+struct AABB {
+    glm::vec3 min;
+    glm::vec3 max;
+    AABB():
+        min(FLT_MAX), max(-FLT_MAX) {}
+    AABB(const glm::vec3 & min_, const glm::vec3 & max_):
+        min(min_), max(max_) {}
+    void expand(const Triangle & t) {
+        min = glm::min(min, t.p1, t.p2, t.p3);
+        max = glm::max(max, t.p1, t.p2, t.p3);
+    }
+};
+struct BVHNode {
+    AABB bound;
+    int  left = -1, right = -1, start = 0, end = 0;
+    bool isLeaf() const { return left == -1 && right == -1; }
+};
+inline bool IntersectAABB(Ray const & ray, AABB const & box) {
+    float tmin = 0, tmax = 1e10f;
+    for (int i = 0; i < 3; ++i) {
+        float t1 = (box.min[i] - ray.Origin[i]) / ray.Direction[i];
+        float t2 = (box.max[i] - ray.Origin[i]) / ray.Direction[i];
+        if (t1 > t2) std::swap(t1, t2);
+        tmin = std::max(tmin, t1);
+        tmax = std::min(tmax, t2);
+        if (tmin > tmax) return false;
+    }
+    return true;
+}
+\end{lstlisting}
+然后实现了\code{IntersectAABB}函数用于判断光线与AABB是否相交.
+\begin{lstlisting}[language=C++]
+inline bool IntersectAABB(Ray const & ray, AABB const & box) {
+    float tmin = 0, tmax = 1e10f;
+    for (int i = 0; i < 3; ++i) {
+        float t1 = (box.min[i] - ray.Origin[i]) / ray.Direction[i];
+        float t2 = (box.max[i] - ray.Origin[i]) / ray.Direction[i];
+        if (t1 > t2) std::swap(t1, t2);
+        tmin = std::max(tmin, t1);
+        tmax = std::min(tmax, t2);
+        if (tmin > tmax) return false;
+    }
+    return true;
+}
+\end{lstlisting}
+然后是结构体\code{BVHIntersector}的实现.其中主要包含两个函数: \code{BuildBVH}函数递归地计算给定起终点的三角形集合的整体包围盒,并沿最长轴按质心中值划分(使用\code{nth\_element}函数)为左右两部分,生成子节点,重复此过程直至叶节点(三角形数较少),最终构建出用于加速光线求交的BVH结构,其代码如下所示:
+\begin{lstlisting}[language=C++]
+int BuildBVH(int start, int end) {
+    BVHNode node;
+    AABB    bound;
+    for (int i = start; i < end; ++i) bound.expand(Triangles[i]);
+    node.bound = bound;
+    int n      = end - start;
+    if (n <= 3) {
+        node.start = start;
+        node.end   = end;
+        int idx    = Nodes.size();
+        Nodes.push_back(node);
+        return idx;
+    }
+    glm::vec3 ex   = bound.max - bound.min;
+    int       axis = (ex.x > ex.y && ex.x > ex.z) ? 0 : ((ex.y > ex.z) ? 1 : 2);
+    int midIdx = start + n / 2;
+    std::nth_element(
+        Triangles.begin() + start,
+        Triangles.begin() + midIdx,
+        Triangles.begin() + end,
+        [axis](const Triangle & a, const Triangle & b) {
+            return a.centroid[axis] < b.centroid[axis];
+        });
+    int left  = BuildBVH(start, midIdx);
+    int right  = BuildBVH(midIdx, end);
+    node.left  = left;
+    node.right = right;
+    int idx    = Nodes.size();
+    Nodes.push_back(node);
+    return idx;
+}
+\end{lstlisting}
+\code{IntersectRay}函数则递归地遍历BVH树,首先判断光线与当前节点的AABB是否相交,如果不相交则直接返回;如果相交且当前节点为叶节点,则遍历该节点内的所有三角形进行求交;如果当前节点不是叶节点,则递归地对其左右子节点进行求交,最终返回最近的交点.找到最近的交点后插值计算交点的颜色等性质.其代码如下所示:
+\begin{lstlisting}[language=C++]
+RayHit IntersectRay(Ray const& ray) const {
+    RayHit result;
+    result.IntersectState = false;
+    float tmin            = 1e7, umin, vmin;
+    int   modelIdx, meshIdx;
+    if (Nodes.empty()) return result;
+    std::stack<int> boundStack;
+    boundStack.push((int) Nodes.size() - 1);
+    Intersection its;
+    while (! boundStack.empty()) {
+        int idx = boundStack.top(); boundStack.pop();
+        BVHNode const & node = Nodes[idx];
+        if (! IntersectAABB(ray, node.bound)) continue;
+        if (node.isLeaf()) {
+            for (int i = node.start; i < node.end; ++i) {
+                const Triangle & t = Triangles[i];
+                if (! IntersectTriangle(its, ray, t.p1, t.p2, t.p3)) continue;
+                if (its.t < EPS1 || its.t > tmin) continue;
+                tmin = its.t, umin = its.u, vmin = its.v;
+                modelIdx = t.modelIndex, meshIdx = t.triangleIndex;
+            }
+        } else {
+            boundStack.push(node.left);
+            boundStack.push(node.right);
+        }
+    }
+    if (tmin == 1e7) {
+        result.IntersectState = false; return result;
+    }
+    // caculate intersection info
+    return result;
+}
+\end{lstlisting}
+\subsection*{实现效果}
+渲染采用的设备为GeForce RTX 5070.
+\begin{figure}[H]
+    \centering
+    \includegraphics[scale=0.17]{figure/RayTrace-Oak-5.png}
+    \caption{对\code{oak}场景进行光线追踪的效果($\text{Sample Rate}=1,\ \text{Max Depth}=5$),渲染时间: 5 min}
 \end{figure}
 \begin{figure}[H]
     \centering
-    \subfigure[网格尺寸$n=40$]{
-        \includegraphics[scale=0.08]{figure/Cube-Torus-40.png}
-    }\qquad\qquad
-    \subfigure[网格尺寸$n=100$]{
-        \includegraphics[scale=0.08]{figure/Cube-Torus-100.png}
-    }
-    \caption{对环面进行Marching Cubes重建的结果}
+    \includegraphics[scale=0.17]{figure/RayTrace-Sponza-5.png}
+    \caption{对\code{sponza}场景进行光线追踪的效果($\text{Sample Rate}=1,\ \text{Max Depth}=5$),渲染时间: 15 min}
+\end{figure}
+\begin{figure}[H]
+    \centering
+    \includegraphics[scale=0.17]{figure/RayTrace-Room-2-5.png}
+    \caption{对\code{breakfast-room}场景进行光线追踪的效果($\text{Sample Rate}=2,\ \text{Max Depth}=5$),渲染时间: 20 min}
 \end{figure}
 \end{document}
