@@ -63,8 +63,58 @@
 \[\dfrac{\p g(\vec{x})}{\p\vec{x}}=\vec{x}(t_{k+1})-\vec{y}(t_k)+(\Delta t)^2\mat{M}^{-1}\dfrac{\p E(\vec{x}(t_{k+1}))}{\p \vec{x}}=\mbf{0}\]
 于是,目标就转化为最小化问题
 \[\vec{x}(t_{k+1})=\arg\min_{\vec{x}}g(\vec{x})\]
-\indent 对于上述最小化问题,使用梯度下降法可能不是一个很好的选择,因为$g(\vec{x})$很可能是非凸的.我们采取牛顿法解决上述问题.\\
-\indent 牛顿法的基本思想是在每轮迭代中使用一个二次函数逼近目标函数,然后求解该二次函数的极小值作为下一次迭代的点.迭代过程每次通过尝试解$\vec{x}^{(k)}$计算下一次
+\indent 我们采取牛顿法解决上述问题.牛顿法的基本思想是在每轮迭代中使用一个二次函数逼近目标函数,然后求解该二次函数的极小值作为下一次迭代的点.迭代过程每次通过尝试解$\vec{x}^{(i)}$计算下一次的解$\vec{x}^{(i+1)}$.对$g(\vec{x})$在$\vec{x}^{(i)}$处进行二阶泰勒展开,有
+\[g(\vec{x})=g(\vec{x}^{(i)})+\nabla g(\vec{x}^{(i)})\cdot(\vec{x}-\vec{x}^{(i)})+\dfrac12(\vec{x}-\vec{x}^{(i)})^{\t}\mat{H}_g(\vec{x}^{(i)})(\vec{x}-\vec{x}^{(i)})+o(||\vec{x}-\vec{x}^{(i)}||^3)\]
+其中$\nabla=\dfrac{\p}{\p\vec{x}}$, $\mat{H}_g$为$g$的Hessian矩阵.忽略高阶无穷小量,下一轮迭代的解$\vec{x}^{(i+1)}$应当为上述二次函数的极小值点.于是对上式两边求梯度并代入$\vec{x}^{(i+1)}$可得
+\[\mbf0=\nabla g(\vec{x}^{(i+1)})=\nabla g(\vec{x}^{(i)})+\mat{H}_g(\vec{x}^{(i)})(\vec{x}^{(i+1)}-\vec{x}^{(i)})\]
+于是下一轮迭代的解即为线性方程组
+\[\mat{H}_g(\vec{x}^{(i)})(\vec{x}^{(i+1)}-\vec{x}^{(i)})=-\nabla g(\vec{x}^{(i)})\]
+的解.对于弹簧质点系统,我们认为$g(\vec{x})$的性质比较良好,只需一次迭代就能求得较为准确的解.于是就有
+\[\mat{H}_g(\vec{x}(t_k))(\vec{x}(t_{k+1})-\vec{x}(t_k))=-\nabla g(\vec{x}(t_k))\]
+根据$g(\vec{x})$的定义可知
+\[\nabla g(\vec{x}(t_k))=\dfrac{1}{(\Delta t)^2}\mat{M}(\vec{x}(t_k)-\vec{y}(t_k))+\nabla E(\vec{x}(t_k))\]
+\[\mat{H}_g(\vec{x}(t_k))=\dfrac{1}{(\Delta t)^2}\mat{M}+\mat{H}_E(\vec{x}(t_k))\]
+其中$\mat{H}_E(\vec{x})$为能量函数$E(\vec{x})$的Hessian矩阵.\\
+\indent 对于$\nabla E(\vec{x}(t_k))$,我们可以把它写成对各个质点的位置$\vec{x}_i$的梯度$\nabla_i E(\vec{x})=\dfrac{\p E(\vec{x})}{\p \vec{x}_i}$的堆叠向量,并且我们已经知道质点$i$受到的内力之和等于能量的负梯度,于是
+\[\nabla E(\vec{x}(t_k))=\begin{bmatrix}
+    \nabla_1 E(\vec{x})\\\cdots\\\nabla_n E(\vec{x})
+\end{bmatrix}_{\vec{x}=\vec{x}(t_k)}=-\begin{bmatrix}
+    \vec{f}_{1,\text{int}}(t_k)\\\cdots\\\vec{f}_{n,\text{int}}(t_k)
+\end{bmatrix}\]
+\indent 接下来考虑$\mat{H}_E(\vec{x}(t_k))$.根据弹簧质点模型的定义,系统的总势能为各个弹簧势能之和:
+\[E(\vec{x})=\sum_{(i,j)}E_{ij}(\vec{x})\]
+其中$(i,j)$表示以弹簧相连的质点.于是
+\[\mat{H}_E(\vec{x})=\sum_{(i,j)}\mat{H}_{E_{ij}}(\vec{x})\]
+其中$\mat{H}_{E_{ij}}(\vec{x})$为单个弹簧势能$E_{ij}(\vec{x})$的Hessian矩阵.根据定义$E_{ij}=\dfrac12k_{ij}\left(\left|\left|\vec{x}_j-\vec{x}_i\right|\right|-l_{ij}\right)^2$有
+\[\mat{H}_{ij}:=\dfrac{\p^2E_{ij}(\vec{x})}{\p\vec{x}_i^2}=k_{ij}\dfrac{(\vec{x}_i-\vec{x}_j)(\vec{x}_i-\vec{x}_j)^\t}{||\vec{x}_i-\vec{x}_j||^2}+k_{ij}\left(1-\dfrac{l_{ij}}{||\vec{x}_i-\vec{x}_j||}\right)\left(\mat{I}-\dfrac{(\vec{x}_i-\vec{x}_j)(\vec{x}_i-\vec{x}_j)^\t}{||\vec{x}_i-\vec{x}_j||^2}\right)\]
+\[\dfrac{\p^2E_{ij}(\vec{x})}{\p\vec{x}_j^2}=\mat{H}_{ij},\quad \dfrac{\p^2E_{ij}(\vec{x})}{\p\vec{x}_i\p\vec{x}_j}=-\mat{H}_{ij}\]
+对于$E_{ij}(\vec{x})$而言,其值仅与$\vec{x}$中第$i$个向量$\vec{x}_i$和第$j$个向量$\vec{x}_j$有关.于是将$E_{ij}(\vec{x})$的Hessian矩阵$\mat{H}_{E_{ij}}(\vec{x})$视作由$N\times N$个$3\times 3$子矩阵组成的矩阵,只有$(i,i),(j,j),(i,j),(j,i)$四个子矩阵非零,且分别为$\mat{H}_{ij},\mat{H}_{ij},-\mat{H}_{ij},-\mat{H}_{ij}$.这就求得了$\mat{H}_E$,于是再代入前述公式即可得隐式欧拉积分的迭代公式.\\
+\indent 最后,我们把隐式欧拉积分求解弹簧质点系统的过程总结如下:
+\begin{enumerate}[label=\tbf{\arabic*.}]
+    \item 遍历系统中的所有弹簧,然后进行如下两个操作:
+    \begin{enumerate}[label=\tbf{\alph*.}]
+        \item 根据弹力的计算公式
+        \[\vec{f}_{ij}=-k_{ij}(\lvert\vec{x}_i-\vec{x}_j\rvert-l_{ij})\dfrac{\vec{x}_i-\vec{x}_j}{\lvert\vec{x}_i-\vec{x}_j\rvert}\]计算弹簧所连接的两个质点$i,j$的内力$\vec{f}_{ij},\vec{f}_{ji}$,并将其累加到质点$i,j$的总内力$\vec{f}_{i,\text{int}},\vec{f}_{j,\text{int}}$上.
+        \item 根据弹簧的Hessian矩阵计算公式
+        \[\mat{H}_{ij}=\dfrac{\p^2E_{ij}(\vec{x})}{\p\vec{x}_i^2}=k_{ij}\dfrac{(\vec{x}_i-\vec{x}_j)(\vec{x}_i-\vec{x}_j)^\t}{||\vec{x}_i-\vec{x}_j||^2}+k_{ij}\left(1-\dfrac{l_{ij}}{||\vec{x}_i-\vec{x}_j||}\right)\left(\mat{I}-\dfrac{(\vec{x}_i-\vec{x}_j)(\vec{x}_i-\vec{x}_j)^\t}{||\vec{x}_i-\vec{x}_j||^2}\right)\]
+        计算质点$i,j$对应的Hessian子矩阵,并将其累加到系统总能量的Hessian矩阵$\mat{H}_E$的对应位置上.
+    \end{enumerate}
+    完成上述两步后即可求出$\nabla E$和$\mat{H}_E$.
+    \item 根据$\vec{y}(t_k)$的定义
+    \[\vec{y}(t_k)=\vec{x}(t_k)+\Delta t\vec{v}(t_k)+(\Delta t)^2\mat{M}^{-1}\vec{f}_{\text{ext}}\]
+    求出$\vec{y}(t_k)$.
+    \item 根据$\nabla g(\vec{x}(t_k))$和$\mat{H}_g(\vec{x}(t_k))$的定义
+    \[\nabla g(\vec{x}(t_k))=\dfrac{1}{(\Delta t)^2}\mat{M}(\vec{x}(t_k)-\vec{y}(t_k))+\nabla E(\vec{x}(t_k))\]
+    \[\mat{H}_g(\vec{x}(t_k))=\dfrac{1}{(\Delta t)^2}\mat{M}+\mat{H}_E(\vec{x}(t_k))\]
+    求出$\nabla g(\vec{x}(t_k))$和$\mat{H}_g(\vec{x}(t_k))$.
+    \item 求解线性方程组
+    \[\mat{H}_g(\vec{x}(t_k))(\vec{x}(t_{k+1})-\vec{x}(t_k))=-\nabla g(\vec{x}(t_k))\]
+    得到$\bs\delta=\vec{x}(t_{k+1})-\vec{x}(t_k)$.
+    \item 根据隐式欧拉的基本公式
+    \[\vec{x}(t_{k+1})=\vec{x}(t_k)+\bs\delta\]
+    \[\vec{v}(t_{k+1})=\dfrac{\bs\delta}{\Delta t}\]
+    计算更新后的位置$\vec{x}(t_{k+1})$和速度$\vec{v}(t_{k+1})$.如此就完成了一个时间间隔内的模拟.
+\end{enumerate}
 \subsection{流体模拟}
 \subsubsection{流体的基本性质}
 \begin{theorem}[Navier-Stokes方程]

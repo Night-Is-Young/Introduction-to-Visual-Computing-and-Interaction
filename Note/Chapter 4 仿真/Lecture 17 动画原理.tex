@@ -1,0 +1,54 @@
+\documentclass{ctexart}
+\usepackage{Note}
+\begin{document}
+\section{动画原理}
+在上一节中,我们主要讨论各种物理现象的模拟方法.然而对于具有能动性的对象,如人和动物,我们往往需要通过动画来表现其运动.本节将介绍动画的基本原理和技术.
+\subsection{旋转的四元数表示}
+\subsubsection{四元数的基本概念}
+我们在\tbf{几何变换}一节中介绍了用矩阵表示物体旋转的方法.现在我们介绍另一种常用的表示旋转的方法:四元数.
+\begin{definition}[四元数]\\
+    定义四元数$q=a+b\i+c\j+d\k$,其中$a,b,c,d\in\R$,且$\i,\j,\k$满足以下乘法规则:
+    \[\i^2=\j^2=\k^2=\i\j\k=-1,\quad \i\j=-\j\i=\k,\quad \j\k=-\k\j=\i,\quad \k\i=-\i\k=\j.\]
+    由于四元数虚部的运算规则与三维空间中的叉乘类似,因此我们可以将四元数$q$表示为$q=[w,\vec{v}]$,其中$\vec{v}=(b,c,d)^\t\in\R^3$.
+\end{definition}
+\begin{theorem}[四元数的乘法]
+    四元数$q_1=[w_1,\vec{v}_1],q_2=[w_2,\vec{v}_2]$的乘积为
+    \[q_1q_2=[w_1w_2-\vec{v}_1\cdot\vec{v}_2,w_1\vec{v}_2+w_2\vec{v}_1+\vec{v}_1\times\vec{v}_2]\]
+\end{theorem}
+\begin{proof}
+    根据四元数的定义和向量叉积的定义即可得出上式.
+\end{proof}
+并且由此不难得出四元数的运算满足结合律和分配律,但不满足交换律.
+\begin{definition}[四元数的模长与单位四元数]\\
+    定义四元数$q$的\tbf{模长}为$||q||=\sqrt{q\cdot q}=\sqrt{w^2+\vec{v}\cdot\vec{v}}$.\\
+    定义\tbf{单位四元数}为模长为$1$的四元数.单位四元数可以表示为$q=[\cos\theta,\vec{u}\sin\theta]$,其中$\vec{u}$是三维的单位向量.
+\end{definition}
+\begin{definition}[四元数的共轭与逆元]\\
+    定义四元数$q=[w,\vec{v}]$的共轭$q^\ast=[w,-\vec{v}]$为其虚部取相反数的结果.\\
+    根据四元数乘法的定义不难得出
+    \[qq^{\ast}=[w^2+\vec{v}\cdot{\vec{v}},\mbf0]=||q||^2\]
+    于是可以定义四元数$q$的\tbf{逆元}为
+    \[q^{-1}=\frac{q^{\ast}}{||q||^2}\]
+    并且总有$qq^{-1}=q^{-1}q=[1,\mbf0]$.对于单位四元数而言总有$q^\ast=q^{-1}$.
+\end{definition}
+\subsubsection{用四元数表示旋转}
+\begin{theorem}[旋转的四元数表示]
+    设$\vec{v}$是三维空间内的单位向量, $q=[\cos\theta,\vec{u}\sin\theta]$为单位四元数.令$v=[0,\vec{v}]$,则$qvq^\ast$的实部为$0$,虚部为$\vec{v}$绕旋转轴$\vec{u}$旋转弧度$2\theta$后得到的向量.
+\end{theorem}
+\begin{proof}
+    由四元数的乘法定义可得
+    \[\begin{aligned}
+        qvq^\ast&=[\cos\theta,\vec{u}\sin\theta][0,\vec{v}][\cos\theta,-\vec{u}\sin\theta]\\
+        &=[-\vec{u}\cdot\vec{v}\sin\theta,\cos\theta\vec{v}+\sin\theta(\vec{u}\times\vec{v})][\cos\theta,-\vec{u}\sin\theta]\\
+        &=[0,\vec{v}\cos2\theta+(\vec{u}\times\vec{v})\sin2\theta+\vec{u}(\vec{u}\cdot\vec{v})(1-\cos2\theta)]
+    \end{aligned}\]
+    由此可见$qvq^\ast$的实部为$0$.而其虚部正是$\vec{v}$绕旋转轴$\vec{u}$旋转弧度$2\theta$后得到的向量(根据我们在旋转矩阵的推导中的结论可知).
+\end{proof}
+\subsection{运动学}
+\subsubsection{前向运动学}
+以人体为例,我们可以把各个关节视作节点,各个骨骼视作连接节点的边.这样,人体就可以表示为一个带有根节点的树形结构.我们只需要知道根节点的位置和各个关节的旋转角度,就可以计算出各个节点的位置.\\
+\indent 以刚体铰链模型$P_0\cdots P_n$为例展示前向运动学的过程.节点$P_0,\cdots,P_n$的初始位置记作$\vec{p}_0^{\text{st}},\cdots,\vec{p}_n^{\text{st}}$,向下一个关节的位移即为$\vec{l}_i=\vec{p}_i^{\text{st}}-\vec{p}_{i-1}^{\text{st}}(i=1,\cdots,n)$,每个节点上都带有一个局部坐标系$\mathcal{C}_i$.\\
+\indent 现在,我们为除去$P_n$外的每个关节$P_j$指定一个旋转矩阵$\mat{R}_j^{\text{loc}}(j=1,\cdots,n-1)$(这里的旋转矩阵是基于该关节关联的局部坐标系$\mathcal{C}_j$所定义的),每个关节$P_j$处的旋转带动其后的所有关节(包括其上带的局部坐标系)和骨骼旋转.因此,节点$P_j$的总的旋转矩阵$\mat{R}_{j}^{\text{tot}}$即为它的局部坐标系$\mathcal{C}_j$相对于根节点的坐标系$\mathcal{C}_0$的旋转与它本身的旋转的复合.而$\mathcal{C}_j$的旋转事实上就是由$P_{j-1}$节点的旋转定义的,因此$\mat{R}_{j}^{\text{tot}}=\mat{R}_{j-1}^{\text{tot}}\mat{R}_j^{\text{loc}}$.\\
+\indent 现在,我们就可以从根节点开始计算每个子节点的位置$\vec{p}_j^{\text{ed}}(j=1,\cdots,n)$.根节点的位置$\vec{p}_0^{\text{ed}}=\vec{p}_0^{\text{st}}$已知,而每个节点的位置可以通过其父节点的位置加上旋转后的位移向量得到,即
+\[\vec{p}_j^{\text{ed}}=\vec{p}_{j-1}^{\text{ed}}+\mat{R}_{j-1}^{\text{tot}}\vec{l}_j\]
+\end{document}

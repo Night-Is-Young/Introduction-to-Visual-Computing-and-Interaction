@@ -8,43 +8,6 @@
 \begin{definition}[几何重建]
     \tbf{几何重建(Geometry Reconstruction)}从离散的三维数据(如点云,深度图像或多视图图像)中,重建出物体或场景的连续几何形状与结构的过程.
 \end{definition}
-\subsection{几何变换基础}
-\begin{theorem}[平移]
-    平移对应的数学操作为向量加法.设物体上任意一点$P$的坐标为$\vec{p}$,平移向量为$\vec{t}$,则平移后的点$P'$的坐标$\vec{p}'=\vec{p}+\vec{t}$.例如,对于三维空间而言有
-    \[\begin{bmatrix}
-        x'\\y'\\z'
-    \end{bmatrix}=\begin{bmatrix}
-        x\\y\\z
-    \end{bmatrix}+\begin{bmatrix}
-        t_x\\t_y\\t_z
-    \end{bmatrix}=\begin{bmatrix}
-        x+t_x\\y+t_y\\z+t_z
-    \end{bmatrix}\]
-\end{theorem}
-\begin{theorem}[旋转]
-    旋转对应的数学操作为矩阵乘法.设物体上任意一点$P$的坐标为$\vec{p}$,旋转矩阵为$\mat{R}$,则旋转后的点$P'$的坐标$\vec{p}'=\mat{R}\vec{p}$.在二维平面中,绕原点逆时针旋转$\theta$角度的旋转矩阵为
-    \[\mat{R}=\begin{bmatrix}
-        \cos\theta & -\sin\theta\\
-        \sin\theta & \cos\theta
-    \end{bmatrix}\]
-    在三维空间中,绕$x,y,z$轴分别旋转$\alpha,\beta,\gamma$角度的旋转矩阵分别为
-    \[\mat{R}_x=\begin{bmatrix}
-        1 & 0 & 0\\
-        0 & \cos\alpha & -\sin\alpha\\
-        0 & \sin\alpha & \cos\alpha
-    \end{bmatrix},\quad \mat{R}_y=\begin{bmatrix}
-        \cos\beta & 0 & \sin\beta\\
-        0 & 1 & 0\\
-        -\sin\beta & 0 & \cos\beta
-    \end{bmatrix},\quad \mat{R}_z=\begin{bmatrix}
-        \cos\gamma & -\sin\gamma & 0\\
-        \sin\gamma & \cos\gamma & 0\\
-        0 & 0 & 1
-    \end{bmatrix}\]
-\end{theorem}
-\begin{theorem}[绕任意轴的旋转]
-    在三维空间中,绕单位向量$\vec{a}=\left(a_x,a_y,a_z\right)$定义的轴逆时针旋转$\theta$角度的旋转矩阵为
-\end{theorem}
 \subsection{点云的配准/注册}
 在几何重建中,我们往往会从不同角度和位置对同一场景或物体分别采集点云数据.将不同视角下的点云对齐到同一坐标系下,才能得到完整的重建数据.
 \begin{definition}[点云配准/注册]

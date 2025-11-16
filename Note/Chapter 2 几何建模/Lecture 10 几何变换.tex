@@ -2,6 +2,80 @@
 \usepackage{Note}
 \begin{document}
 \section{几何变换}
+\subsection{几何变换基础}
+\begin{theorem}[平移]
+    平移对应的数学操作为向量加法.设物体上任意一点$P$的坐标为$\vec{p}$,平移向量为$\vec{t}$,则平移后的点$P'$的坐标$\vec{p}'=\vec{p}+\vec{t}$.例如,对于三维空间而言有
+    \[\begin{bmatrix}
+        x'\\y'\\z'
+    \end{bmatrix}=\begin{bmatrix}
+        x\\y\\z
+    \end{bmatrix}+\begin{bmatrix}
+        t_x\\t_y\\t_z
+    \end{bmatrix}=\begin{bmatrix}
+        x+t_x\\y+t_y\\z+t_z
+    \end{bmatrix}\]
+\end{theorem}
+\begin{theorem}[旋转]
+    旋转对应的数学操作为矩阵乘法.设物体上任意一点$P$的坐标为$\vec{p}$,旋转矩阵为$\mat{R}$,则旋转后的点$P'$的坐标$\vec{p}'=\mat{R}\vec{p}$.在二维平面中,绕原点逆时针旋转$\theta$角度的旋转矩阵为
+    \[\mat{R}=\begin{bmatrix}
+        \cos\theta & -\sin\theta\\
+        \sin\theta & \cos\theta
+    \end{bmatrix}\]
+    在三维空间中,绕$x,y,z$轴分别旋转$\alpha,\beta,\gamma$角度的旋转矩阵分别为
+    \[\mat{R}_x=\begin{bmatrix}
+        1 & 0 & 0\\
+        0 & \cos\alpha & -\sin\alpha\\
+        0 & \sin\alpha & \cos\alpha
+    \end{bmatrix},\quad \mat{R}_y=\begin{bmatrix}
+        \cos\beta & 0 & \sin\beta\\
+        0 & 1 & 0\\
+        -\sin\beta & 0 & \cos\beta
+    \end{bmatrix},\quad \mat{R}_z=\begin{bmatrix}
+        \cos\gamma & -\sin\gamma & 0\\
+        \sin\gamma & \cos\gamma & 0\\
+        0 & 0 & 1
+    \end{bmatrix}\]
+\end{theorem}
+\begin{theorem}[绕任意轴的旋转]
+    在三维空间中,绕单位向量$\vec{a}=\left(a_x,a_y,a_z\right)$定义的轴逆时针旋转$\theta$角度的旋转矩阵$\mat{R}$为
+    \[\mat{R}=\cos\theta\begin{bmatrix}
+        1&0&0\\
+        0&1&0\\
+        0&0&1
+    \end{bmatrix}+(1-\cos\theta)\begin{bmatrix}
+        a_x^2 & a_xa_y & a_xa_z\\
+        a_xa_y & a_y^2 & a_ya_z\\
+        a_xa_z & a_ya_z & a_z^2
+    \end{bmatrix}+\sin\theta\begin{bmatrix}
+        0 & -a_z & a_y\\
+        a_z & 0 & -a_x\\
+        -a_y & a_x & 0
+    \end{bmatrix}\]
+\end{theorem}
+\begin{proof}
+    考虑三维空间中的点$\vec{v}$,旋转轴$\vec{a}$和旋转角度$\theta$.从$\vec{v}$旋转至$\vec{v}'$的操作可以分解为平行于$\vec{a}$的分量$\vec{r}$和垂直于$\vec{a}$的分量$\vec{u}$.\\
+    根据投影向量的定义, $\vec{r}=(\vec{v}\cdot\vec{a})\vec{a}$, $\vec{u}=\vec{v}-(\vec{v}\cdot\vec{a})\vec{a}$.旋转过程中, $\vec{r}$保持不变,而$\vec{u}$则绕$\vec{a}$旋转$\theta$角度,这可以由下面的方式得到
+    \[\vec{u}'=\vec{u}\cos\theta+\vec{u}^{\bot}\sin\theta\]
+    注意到$\vec{u}^\bot=\vec{a}\times\vec{v}$,于是可得
+    \[\begin{aligned}
+        \vec{v}'
+        &= \left[\left(\vec{v}-(\vec{v}\cdot\vec{a})\vec{a}\right)\cos\theta\right]+(\vec{a}\times\vec{v})\sin\theta+(\vec{v}\cdot\vec{a})\vec{a} \\
+        &= \vec{v}\cos\theta+(1-\cos\theta)(\vec{v}\cdot\vec{a})\vec{a}+(\vec{a}\times\vec{v})\sin\theta
+    \end{aligned}\]
+    定义$\vec{a}$的反对称矩阵为
+    \[\vec{a}^\ast=\begin{bmatrix}
+        0 & -a_z & a_y\\
+        a_z & 0 & -a_x\\
+        -a_y & a_x & 0
+    \end{bmatrix}\]
+    不难根据矩阵乘法和向量叉乘的定义得出$\vec{a}\times\vec{v}=\vec{a}^\ast\vec{v}$.\\
+    根据点积的定义有
+    \[(\vec{a}\cdot\vec{x})\vec{a}=\left(\vec{a}^\t\vec{x}\right)\vec{a}=\vec{a}\left(\vec{a}^\t\vec{x}\right)=\left(\vec{a}\vec{a}^{\t}\right)\vec{x}\]
+    于是将上述$\vec{v}'$的式子写作矩阵乘法即有
+    \[\vec{v}'=\left[\mat{I}\cos\theta+\vec{a}\vec{a}^\t(1-\cos\theta)+\vec{a}^\ast\sin\theta\right]\vec{v}\]
+    于是旋转矩阵即为
+    \[\mat{R}=\mat{I}\cos\theta+\vec{a}\vec{a}^\t(1-\cos\theta)+\vec{a}^\ast\sin\theta\]
+\end{proof}
 \subsection{齐次坐标系及其中的几何变换}
 我们在上一节中简单介绍了几何变换对应的数学操作.例如,平移可以视作向量的加法,旋转可以视作旋转矩阵与向量的乘法.但是,这些操作并不能统一表示,因而带来了额外的麻烦.例如,平移无法表示为矩阵与向量的乘法.为了解决这个问题,我们可以引入齐次坐标系的概念.
 \subsubsection{齐次坐标系的定义}
@@ -10,41 +84,37 @@
     在$n$维空间$R^n$中,点$\vec{v}=\left(\li x,n\right)$的齐次坐标表示为$\left(\li x,n,1\right)$,即在原有坐标的基础上增加一个分量恒为$1$的维度.\\
     相应地,齐次坐标系中的向量$\vec{v}=\left(\li x,n\right)$表示为$\left(\li x,n,0\right)$,即在原有坐标的基础上增加一个分量恒为$0$的维度.
 \end{definition}
-如此,我们可以将所有的几何变换都表示为$(n+1)\times(n+1)$的矩阵与齐次坐标向量的乘法.例如,在二维空间中的一些几何操作对应的矩阵如下:
-\begin{table}[H]\centering
-    \begin{tabular}{cc}
-        平移&\quad 旋转\\
-        $\begin{bmatrix}
-            x'\\y'\\1
-        \end{bmatrix}=\begin{bmatrix}
-            1&0&t_x\\0&1&t_y\\0&0&1
-        \end{bmatrix}\begin{bmatrix}
-            x\\y\\1
-        \end{bmatrix}$&\quad$\begin{bmatrix}
-            x'\\y'\\1
-        \end{bmatrix}=\begin{bmatrix}
-            \cos\theta&-\sin\theta&0\\\sin\theta&\cos\theta&0\\0&0&1
-        \end{bmatrix}\begin{bmatrix}
-            x\\y\\1
-        \end{bmatrix}$
-    \end{tabular}
-\end{table}
-\subsubsection{旋转矩阵}
-在上一节中我们不加证明地给出了旋转矩阵的定义.在此我们详细地推导旋转矩阵的形式.
+如此,我们可以将所有的几何变换都表示为$(n+1)\times(n+1)$的矩阵与齐次坐标向量的乘法.
+\subsubsection{齐次坐标系中几何变换的表示方式}
+这里以三维空间为例介绍齐次坐标系中几何变换的表示方式.
+\begin{theorem}[齐次坐标系中的平移矩阵]
+    平移向量$\vec{t}=(t_x,t_y,t_z)$的平移矩阵为
+    \[\mat{T}=\mat{I}+\begin{bmatrix}
+        \vec{t}\\0
+    \end{bmatrix}\]
+    对于空间中任意一点$\vec{p}$,在齐次坐标系下总有
+    \[\begin{bmatrix}
+        \vec{p}+\vec{t}\\1
+    \end{bmatrix}=\mat{T}\begin{bmatrix}
+        \vec{p}\\1
+    \end{bmatrix}\]
+\end{theorem}
 \begin{proof}
-    考虑三维空间中的点$\vec{v}$,旋转轴$\vec{a}$和旋转角度$\theta$.从$\vec{v}$旋转至$\vec{v}'$的操作可以分解为平行于$\vec{a}$的分量$\vec{r}$和垂直于$\vec{a}$的分量$\vec{u}$.\\
-    根据投影向量的定义,$\vec{r}=(\vec{v}\cdot\vec{a})\vec{a}$,$\vec{u}=\vec{v}-(\vec{v}\cdot\vec{a})\vec{a}$.旋转过程中,$\vec{r}$保持不变,而$\vec{u}$则绕$\vec{a}$旋转$\theta$角度,这可以由下面的方式得到
-    \[\vec{u}'=\vec{u}\cos\theta+\vec{u}^{\bot}\sin\theta\]
-    注意到$\vec{u}^\bot=\vec{a}\times\vec{v}$,于是前面的推导可以整理成
-    \[\vec{v}'=\left[\left(\vec{v}-(\vec{v}\cdot\vec{a})\vec{a}\right)\cos\theta\right]+(\vec{a}\times\vec{v})\sin\theta+(\vec{v}\cdot\vec{a})\vec{a}\]
+    简单地运用矩阵乘法的定义就能得到.
 \end{proof}
-\subsection{几何变换在铰接刚体中的应用}
-\subsubsection{前向运动学}
-以人体为例,我们可以把各个关节视作节点,各个骨骼视作连接节点的边.这样,人体就可以表示为一个带有根节点的树形结构.我们只需要知道根节点的位置和各个关节的旋转角度,就可以计算出各个节点的位置.\\
-\indent 以刚体铰链模型$P_0\cdots P_n$为例展示前向运动学的过程.节点$P_0,\cdots,P_n$的初始位置记作$\vec{p}_0^{\text{st}},\cdots,\vec{p}_n^{\text{st}}$,向下一个关节的位移即为$\vec{l}_i=\vec{p}_i^{\text{st}}-\vec{p}_{i-1}^{\text{st}}(i=1,\cdots,n)$,每个节点上都带有一个局部坐标系$\mathcal{C}_i$.\\
-\indent 现在,我们为除去$P_n$外的每个关节$P_j$指定一个旋转矩阵$\mat{R}_j^{\text{loc}}(j=1,\cdots,n-1)$(这里的旋转矩阵是基于该关节关联的局部坐标系$\mathcal{C}_j$所定义的),每个关节$P_j$处的旋转带动其后的所有关节(包括其上带的局部坐标系)和骨骼旋转.因此,节点$P_j$的总的旋转矩阵$\mat{R}_{j}^{\text{tot}}$即为它的局部坐标系$\mathcal{C}_j$相对于根节点的坐标系$\mathcal{C}_0$的旋转与它本身的旋转的复合.而$\mathcal{C}_j$的旋转事实上就是由$P_{j-1}$节点的旋转定义的,因此$\mat{R}_{j}^{\text{tot}}=\mat{R}_{j-1}^{\text{tot}}\mat{R}_j^{\text{loc}}$.\\
-\indent 现在,我们就可以从根节点开始计算每个子节点的位置$\vec{p}_j^{\text{ed}}(j=1,\cdots,n)$.根节点的位置$\vec{p}_0^{\text{ed}}=\vec{p}_0^{\text{st}}$已知,而每个节点的位置可以通过其父节点的位置加上旋转后的位移向量得到,即
-\[\vec{p}_j^{\text{ed}}=\vec{p}_{j-1}^{\text{ed}}+\mat{R}_{j-1}^{\text{tot}}\vec{l}_j\]
+\begin{theorem}[齐次坐标系中的旋转矩阵]
+    齐次坐标系中的旋转矩阵为
+    \[\mat{R}=\begin{bmatrix}
+        \mat{R}'&\mbf0\\
+        \mbf0&1
+    \end{bmatrix}\]
+    其中$\mat{R}'$为三维空间中的旋转矩阵,在前面已经推出其具体形式.
+\end{theorem}
+于是在齐次坐标系下,任何平移与旋转变换都可以写作矩阵
+\[\begin{bmatrix}
+    \mat{R}&\vec{t}\\\mbf0&1
+\end{bmatrix}\]
+与齐次坐标向量的乘法形式.
 \subsection{几何变换在模型渲染中的应用}
 对于渲染这一过程来说,将三维模型投影到二维平面上是一个重要的步骤.观察者的位置和视角决定了投影的结果.通常,我们需要观察者的位置$\vec{p}$,观察平面的法向量$\vec{n}$和视角正上方的方向$\vec{v}$决定.
 \subsubsection{坐标变换}
