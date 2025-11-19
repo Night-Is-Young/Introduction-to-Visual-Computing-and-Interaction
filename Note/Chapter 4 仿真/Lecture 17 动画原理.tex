@@ -51,4 +51,32 @@
 \indent 现在,我们为除去$P_n$外的每个关节$P_j$指定一个旋转矩阵$\mat{R}_j^{\text{loc}}(j=1,\cdots,n-1)$(这里的旋转矩阵是基于该关节关联的局部坐标系$\mathcal{C}_j$所定义的),每个关节$P_j$处的旋转带动其后的所有关节(包括其上带的局部坐标系)和骨骼旋转.因此,节点$P_j$的总的旋转矩阵$\mat{R}_{j}^{\text{tot}}$即为它的局部坐标系$\mathcal{C}_j$相对于根节点的坐标系$\mathcal{C}_0$的旋转与它本身的旋转的复合.而$\mathcal{C}_j$的旋转事实上就是由$P_{j-1}$节点的旋转定义的,因此$\mat{R}_{j}^{\text{tot}}=\mat{R}_{j-1}^{\text{tot}}\mat{R}_j^{\text{loc}}$.\\
 \indent 现在,我们就可以从根节点开始计算每个子节点的位置$\vec{p}_j^{\text{ed}}(j=1,\cdots,n)$.根节点的位置$\vec{p}_0^{\text{ed}}=\vec{p}_0^{\text{st}}$已知,而每个节点的位置可以通过其父节点的位置加上旋转后的位移向量得到,即
 \[\vec{p}_j^{\text{ed}}=\vec{p}_{j-1}^{\text{ed}}+\mat{R}_{j-1}^{\text{tot}}\vec{l}_j\]
+\subsubsection{逆向运动学}
+\tbf{逆向运动学(Inverse Kinematics, IK)}的任务与前向运动学恰恰相反,其需要根据给定的部分关节的位置$\vec{p}_i$(包括但是不仅限于末关节)，反向求解出一组关节局部旋转$\mat{R}_i^{\text{loc}}$的解.逆向运动学可以被用于机械臂或者是虚拟角色的控制,也可以帮助修复一些质量较差,没有满足部分接触要求的动作捕捉数据.\\
+\indent 对于简单的,具有两个骨骼的系统, IK问题有解析的解.然而,对于更复杂的系统,我们只能通过数值方法求解IK问题.下面介绍两种常用的方法:\tbf{循环坐标推演(Cyclic Coordinate Descent, CCD)}和\tbf{前向后向抵达(Forward and Backward Reaching, FABR)}.
+\paragraph{CCD IK}
+CCD的思想是从末端关节开始,依次调整每个关节的旋转,使得末端关节逐渐接近目标位置.\\
+\indent 具体地,假定当前铰接刚体系统共有$n+1$个关节与$n$个连接关节的骨骼,我们希望末端的关节位置$\vec{p}_n$距离目标$t$尽可能接近.于是遍历第$n-1,\cdots,0$个关节,每次求解关节$i$处的旋转矩阵$\mat{R}_i^{\text{loc}}$使得调整后$\vec{p}_i$, $\vec{p}_n$和$t$三点共线\footnote{确切地说,是令$\vec{p}_n-\vec{p}_i$和$\vec{t}-\vec{p}_i$同向.在\code{glm}库中,求解将向量\code{a}旋转到向量\code{b}对应的四元数可以用\code{glm::rotate}函数实现.},然后将更新后的$\mat{R}_i^{\text{loc}}$应用于第$i$个关节及其后续的所有关节,更新它们的位置.重复上述过程直到末端关节$\vec{p}_n$足够接近目标$t$或者达到最大迭代次数为止.
+\paragraph{FABR IK}
+FABR的思想是通过两次遍历关节链,根据骨骼长度调整关节位置,使得末端关节接近目标位置.\\
+\indent 具体地,假定当前铰接刚体系统共有$n+1$个关节与$n$个连接关节的骨骼,我们希望末端的关节位置$\vec{p}_n$距离目标$t$尽可能接近.\\
+\indent 首先是Backward步骤的计算.我们将末端关节$\vec{p}_n$移动到目标位置$t$,记$\vec{p}_n^{\text{back}}=\vec{t}$.接着,我们从末端关节向根节点遍历每个关节$i$($i=n-1,\cdots,0$),将$\vec{p}_i$更新到$\vec{p}_i^{\text{back}}$使得
+\[\left|\vec{p}_{i+1}^{\text{back}}-\vec{p}_i^{\text{back}}\right|=|\vec{l}_{i+1}|,\quad\vec{p}_i,\vec{p}_i^{\text{back}},\vec{p}_{i+1}^{\text{back}}\text{共线}\]
+于是可得
+\[\vec{p}_i^{\text{back}}=\vec{p}_{i+1}^{\text{back}}+\dfrac{\vec{p}_{i}-\vec{p}_{i+1}^{\text{back}}}{\left|\vec{p}_{i}-\vec{p}_{i+1}^{\text{back}}\right|}|\vec{l}_{i+1}|\]
+如此往复直到根节点位置\footnote{实际上根节点的位置不用更新.}.现在,我们得到了一组新的关节位置$\left\{\vec{p}_{i}^{\text{back}}\right\}_{i=1}^{n}$.\\
+\indent 接下来是Forward步骤的计算.记$\vec{p}_0^{\text{for}}=\vec{p}_0^{\text{st}}$.接着,我们从根节点向末端遍历每个关节$i$($i=1,\cdots,n$),将$\vec{p}_i^{\text{back}}$更新到$\vec{p}_i^{\text{for}}$使得
+\[\left|\vec{p}_{i}^{\text{for}}-\vec{p}_{i-1}^{\text{for}}\right|=|\vec{l}_{i}|,\quad\vec{p}_i^{\text{back}},\vec{p}_i^{\text{for}},\vec{p}_{i-1}^{\text{for}}\text{共线}\]
+于是可得
+\[\vec{p}_i^{\text{for}}=\vec{p}_{i-1}^{\text{for}}+\dfrac{\vec{p}_i^{\text{back}}-\vec{p}_{i-1}^{\text{for}}}{\left|\vec{p}_i^{\text{back}}-\vec{p}_{i-1}^{\text{for}}\right|}|\vec{l}_{i}|\]
+如此往复直到末端节点位置.现在,我们得到了一组新的关节位置$\left\{\vec{p}_{i}^{\text{for}}\right\}_{i=1}^{n}$.这组新的关节满足骨骼长度约束,并且$\vec{p}_n$相比之前更接近目标$\vec{t}$.\\
+\indent 重复上述的Backward和Forward步骤直到末端关节$\vec{p}_n$足够接近目标$t$或者达到最大迭代次数为止.
+\subsection{动作捕捉}
+\tbf{动作捕捉(Motion Capture, Mocap)}是通过设备记录人和物体运动的方法.就角色来说,我们需要一些
+专业的动捕演员,让其穿戴特定的设备进行表演.在每一时刻,演员的肢体运动甚至面部表情会都会被设备记录下来,转化成骨骼的旋转数据,记录完毕后将其交给后续的处理流程.我们接下来介绍一些常用的动作捕捉设备及其原理.
+\subsubsection{外骨骼}
+外骨骼是一种基于机械结构的动作捕捉设备.演员需要穿戴一个带有多个传感器的外骨骼装置,这些传感器通常安装在关节处,用于测量关节的旋转角度.通过读取这些传感器的数据,我们可以实时获取演员各个关节的旋转信息,从而重建出演员的动作.\\
+\indent 外骨骼的优点是可以提供高精度的关节旋转数据,且不受外部环境光线和遮挡的影响.然而,外骨骼设备通常较为笨重,限制了演员的动作自由度.
+\subsubsection{光学动作捕捉}
+光学动作捕捉系统是目前最常用的动作捕捉技术,通常使用多个摄像头来跟踪演员身上的发光或反光的标记点.摄像头捕捉到标记点的位置后,通过三角测量法计算出标记点在三维空间中的位置.然后,通过对这些位置数据进行处理,可以推断出演员的骨骼姿态和动作.
 \end{document}
