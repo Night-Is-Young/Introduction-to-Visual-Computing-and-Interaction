@@ -123,19 +123,89 @@
 为了研究坐标系变换问题,我们从二维坐标系变换开始.\\
 \indent 考虑$\vec{p}$在$uv$坐标和$xy$坐标下的表示分别为
 \[\left(p_u,p_v\right)=\vec{o}_{uv}+p_u\vec{u}+p_v\vec{v}\]
-\[\left(p_x,p_y\right)=\vec{o}_{xy}+p_u\vec{u}+p_v\vec{v}\]
+\[\left(p_x,p_y\right)=\vec{o}_{xy}+p_x\vec{x}+p_y\vec{y}\]
 其中$\vec{o}_{uv}$和$\vec{o}_{xy}$分别为两个坐标系的原点位置.并且有
-\[\vec{u}=x_u\vec{x}+y_u\vec{y}\]
-\[\vec{v}=x_v\vec{x}+y_v\vec{y}\]
-不妨设$uv$坐标的原点在$xy$坐标中的表示为$\left(o_x,o_y\right)$.那么可以把坐标变换视作平移和旋转的复合,即
+\[\vec{u}=u_x\vec{x}+u_y\vec{y}\]
+\[\vec{v}=v_x\vec{x}+v_y\vec{y}\]
+于是可以列出方程
+\[\vec{o}_{uv}+p_u(u_x\vec{x}+u_y\vec{y})+p_v(v_x\vec{x}+v_y\vec{y})=\vec{o}_{xy}+p_x\vec{x}+p_y\vec{y}\]
+即
+\[\vec{o}_{uv}-\vec{o}_{xy}=(p_x-p_uu_x-p_vv_x)\vec{x}+(p_y-p_uu_y-p_vv_y)\vec{y}\]
+设$uv$坐标的原点在$xy$坐标系下的表示为$(e_x,e_y)$,则有
+\[\left\{\begin{array}{l}
+    e_x=p_x-p_uu_x-p_vv_x\\
+    e_y=p_y-p_uu_y-p_vv_y
+\end{array}\right.\]
+于是可得
+\[\left\{\begin{array}{l}
+    p_x=e_x+p_uu_x+p_vv_x\\
+    p_y=e_y+p_uu_y+p_vv_y
+\end{array}\right.\]
+我们发现上述结果恰好对应于下面的几何变换:
 \[\begin{bmatrix}
-    p_u\\p_v\\1
-\end{bmatrix}=\begin{bmatrix}
-    1&0&
-\end{bmatrix}\begin{bmatrix}
-    x_u&y_u&0\\x_v&y_v&0\\0&0&1
-\end{bmatrix}\begin{bmatrix}
     p_x\\p_y\\1
+\end{bmatrix}=\begin{bmatrix}
+    1&0&e_x\\
+    0&1&e_y\\
+    0&0&1
+\end{bmatrix}\begin{bmatrix}
+    u_x&v_x&0\\
+    u_y&v_y&0\\
+    0&0&1
+\end{bmatrix}\begin{bmatrix}
+    p_u\\p_v\\1
+\end{bmatrix}\]
+需要注意的是,以矩阵乘法表示的几何变换只能在同一坐标系下才具有几何意义.因此,上述等式左右两边的点都应在$xy$坐标系下描述其坐标.也即,我们把$xy$坐标系中的点$(p_u,p_v)_{xy}$先旋转,使得旋转后的$\vec{x}$, $\vec{y}$轴分别与$\vec{u}$, $\vec{v}$轴对齐,再平移使得$xy$坐标系的原点与$uv$坐标系的原点重合.此时,$(p_u,p_v)_{xy}$将被变换到$(p_x,p_y)_{xy}$,这一点的即$uv$坐标系中的点$(p_u,p_v)_{uv}$的位置.于是我们就完成了坐标系变换.上述过程如下图所示.
+\begin{figure}[H]\centering
+\subfigure{
+    \begin{tikzpicture}[scale=0.6]
+        \draw[-latex] (-1,0) -- (5,0) node[right] {$\vec{x}$};
+        \draw[-latex] (0,-1) -- (0,5) node[above] {$\vec{y}$};
+        \filldraw[black] (2,1) circle (2pt) node[above right] {$(p_u,p_v)_{xy}$};
+    \end{tikzpicture}
+}\subfigure{
+    \begin{tikzpicture}[scale=0.6]
+        \draw[-latex] (-1,0) -- (5,0) node[right] {$\vec{x}$};
+        \draw[-latex] (0,-1) -- (0,5) node[above] {$\vec{y}$};
+        \draw[-latex,blue] (0,0) -- (2.598,1.5) node[above right] {$\vec{u}$};
+        \draw[-latex,blue] (0,0) -- (-1.5,2.598) node[above left] {$\vec{v}$};
+        \draw[dashed] (0,0) -- (2,1);
+        \draw[dashed,blue] (0,0) -- (1.232,1.866);
+        \draw[-latex,blue,thick] (2,1) arc[start angle=26.565,end angle=56.565,radius=2.236];
+        \filldraw[black] (2,1) circle (2pt) node[below right] {$(p_u,p_v)_{xy}$};
+        \filldraw[blue] (1.232,1.866) circle (2pt);
+    \end{tikzpicture}
+}\subfigure{
+    \begin{tikzpicture}[scale=0.6]
+        \draw[-latex] (-1,0) -- (5,0) node[right] {$\vec{x}$};
+        \draw[-latex] (0,-1) -- (0,5) node[above] {$\vec{y}$};
+        \draw[-latex,blue,thick] (2,1) arc[start angle=26.565,end angle=56.565,radius=2.236];
+        \draw[-latex,red,thick] (1.232,1.866) -- (4.232,4.866);
+        \filldraw[blue] (1.232,1.866) circle (2pt);
+        \draw[-latex,red] (3,3) -- (5.598,4.5) node[above right] {$\vec{u}$};
+        \draw[-latex,red] (3,3) -- (1.5,5.598) node[above left] {$\vec{v}$};
+        \filldraw[black] (2,1) circle (2pt) node[below right] {$(p_u,p_v)_{xy}$};
+        \filldraw[red] (4.232,4.866) circle (2pt) node[above] {$(p_x,p_y)_{xy}$};
+        \node[red,above] at (4.232,5.6) {$(p_u,p_v)_{uv}$};
+    \end{tikzpicture}
+}\caption{二维坐标系变换的示意图}
+\end{figure}
+\paragraph{三维坐标变换}
+同样地,可以推出三维坐标系的矩阵表示为
+\[\begin{bmatrix}
+    p_x\\p_y\\p_z\\1
+\end{bmatrix}=\begin{bmatrix}
+    1&0&0&e_x\\
+    0&1&0&e_y\\
+    0&0&1&e_z\\
+    0&0&0&1
+\end{bmatrix}\begin{bmatrix}
+    u_x&v_x&w_x&0\\
+    u_y&v_y&w_y&0\\
+    u_z&v_z&w_z&0\\
+    0&0&0&1
+\end{bmatrix}\begin{bmatrix}
+    p_u\\p_v\\p_w\\1
 \end{bmatrix}\]
 \subsubsection{投影变换}
 在解决坐标变换的问题后,我们需要将物体投影到观察平面上.这里我们介绍两种常见的投影方式:正交和透视投影.在此之前,需要明确一些投影中的概念.
@@ -224,7 +294,8 @@
     0&0&1&0
     \end{bmatrix}
 \end{aligned}\]
-这就完成了把观察体映射到规范化坐标系的立方体内的过程.
+这就完成了把观察体映射到规范化坐标系的立方体内的过程.\\
+\indent 需要注意的是,在透视投影后的第四个分量即为深度值$z$,这在后续的深度测试中会用到.此外,根据齐次坐标的定义,在使用透视投影矩阵后需要再做一次齐次除法,即将前三个分量分别除以第四个分量,才能得到最终的规范化坐标系下的坐标值.
 \paragraph{视口映射}
 在完成将观察体映射到规范化坐标系的工作后,由于不同设备的屏幕分辨率大小不同,我们需要将规范化坐标系内的物体再映射到屏幕坐标上(这里不对$z$坐标做变换,在以后的步骤中另有他用).假定屏幕的宽度和高度分别为$w,h$,那么视口变换就是把$xy$坐标$[-1,1]\times[-1,1]$映射到$[0,w]\times[0,h]$上.这也是一个放缩操作,因此不难写出视口变换的矩阵为
 \[\mat{M}_{\text{view}}=\begin{bmatrix}
