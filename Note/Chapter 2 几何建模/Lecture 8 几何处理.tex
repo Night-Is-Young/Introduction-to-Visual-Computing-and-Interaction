@@ -2,7 +2,6 @@
 \usepackage{Note}
 \begin{document}
 \section{几何处理}
-\subsection{几何操作的数学基础}
 \subsection{离散微分几何}
 我们总是用离散的网格\footnote{在本节,我们主要以三角网格作为研究对象.}来描述连续的曲面,但网格定义出的几何形状只能给出$\mathcal{C}^0$连续性.如何将连续曲面的各种微分量应用在离散的情况下就属于\tbf{离散微分几何}研究的内容.常见的各种微分量有法向量,曲率,拉普拉斯算子等.
 \subsubsection{局部平均区域}
@@ -64,7 +63,7 @@
     \[w_{ij}=\dfrac{1}{2}\left(\cot\alpha_{ij}+\cot\beta_{ij}\right)\]
     其中$\alpha_{ij}$和$\beta_{ij}$是与边$(\vec{x}_i,\vec{x}_j)$相邻的两个三角形中该边所对的角.
 \end{definition}
-我们现在来证明上述定义(尤其是余切Laplacian)的合理性\footnote{依照下面的推导,余切Laplacian的系数似乎不需要进行归一化,但实际实现时往往会进行归一化操作;并且在计算得到的余切值显著较大时还需要进行修正.}.
+我们现在来证明上述定义(尤其是余切Laplacian)的合理性\footnote{依照下面的推导,余切Laplacian的系数的归一化与邻域面积有关,但实际实现时往往会直接进行归一化操作;并且在计算得到的余切值显著较大时还需要进行修正.}.
 \begin{proof}
     我们首先推导散度定理在二维情形下(即格林公式)的向量表述\footnote{这在高等数学习题中亦有相应的习题,此处再推导一遍.}.对于一个在区域$\Omega$上定义的向量场$\vec{v}(x,y)=\left(P(x,y),Q(x,y)\right)$,设$\vec{n}(x,y)=(a,b)$为$\p\Omega$上$(x,y)$处的单位外法向量,此处的单位切向量$\vec{t}(x,y)=(\cos\alpha,\cos\beta)$.于是有
     \[\vec{k}=\vec{n}\times\vec{t}=\begin{vmatrix}
@@ -193,7 +192,7 @@
 \[\vec{v}^\ast=\left(\mat{Q}'\right)^{-1}\begin{bmatrix}
     0&0&0&1
 \end{bmatrix}^{\text{t}}\]
-如果$\mat{Q}'$不可逆,这就说明我们无法找出使误差最小的$\vec{v}$.此时,我们可以简单地选择$\vec{v}_1,\vec{v}_2$以及它们的中点$\dfrac{\vec{v}_1+\vec{v}_2}{2}$中使得误差$\vec{v}^{\text{t}}\mat{Q}\vec{v}$最小的点作为优化的结果$\vec{v}^\ast$.需要注意的是,这里的$\mat{Q}'$\textit{仅作为}求解$\vec{v}^\ast$使用.计算误差仍然使用$\mat{Q}$.\\
+如果$\mat{Q}'$不可逆,这就说明我们无法找出使误差最小的$\vec{v}$.此时,我们可以简单地选择$\vec{v}_1,\vec{v}_2$以及它们的中点$\dfrac{\vec{v}_1+\vec{v}_2}{2}$中使得误差$\vec{v}^{\text{t}}\mat{Q}\vec{v}$最小的点作为优化的结果$\vec{v}^\ast$.需要注意的是,这里的$\mat{Q}'$\textit{仅用于}求解$\vec{v}^\ast$使用.计算误差仍然使用$\mat{Q}$.\\
 \indent 于是, QEM算法的基本流程为:
 \begin{enumerate}[label=\tbf{\arabic*.},topsep=0pt,parsep=0pt,itemsep=0pt,partopsep=0pt]
     \item 初始化每个顶点的误差矩阵$\mat{Q}_i$.
