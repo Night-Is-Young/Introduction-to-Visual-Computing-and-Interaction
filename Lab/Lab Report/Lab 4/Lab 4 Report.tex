@@ -1,0 +1,287 @@
+\documentclass{ctexart}
+\usepackage{Note}
+\title{\textbf{Lab 4 报告}}
+\author{蒋锦豪 2400011785}
+\date{\today}
+\begin{document}
+\maketitle
+\textit{由于本}Lab\textit{的效果多为动图,无法放进报告中,故效果图数量较少,以运行效果为准.}
+\section*{Task 1: Inverse Kinematics}
+\subsection*{Sub-Task 1}
+前向运动学的原理如下:节点$P_0,\cdots,P_n$的初始位置记作$\vec{p}_0^{\text{st}},\cdots,\vec{p}_n^{\text{st}}$,向下一个关节的位移即为$\vec{l}_i=\vec{p}_i^{\text{st}}-\vec{p}_{i-1}^{\text{st}}(i=1,\cdots,n)$,每个节点上都带有一个局部坐标系$\mathcal{C}_i$.对除去$P_n$外的每个关节$P_j$指定一个旋转矩阵$\mat{R}_j^{\text{loc}}(j=1,\cdots,n-1)$,每个关节$P_j$处的旋转带动其后的所有关节和骨骼旋转.因此,节点$P_j$的总的旋转矩阵$\mat{R}_{j}^{\text{tot}}$即为它的局部坐标系$\mathcal{C}_j$相对于根节点的坐标系$\mathcal{C}_0$的旋转与它本身的旋转的复合.而$\mathcal{C}_j$的旋转事实上就是由$P_{j-1}$节点的旋转定义的,因此$\mat{R}_{j}^{\text{tot}}=\mat{R}_{j-1}^{\text{tot}}\mat{R}_j^{\text{loc}}$.\\
+\indent 现在就可以从根节点开始计算每个子节点的位置$\vec{p}_j^{\text{ed}}(j=1,\cdots,n)$.根节点的位置$\vec{p}_0^{\text{ed}}=\vec{p}_0^{\text{st}}$已知,而每个节点的位置可以通过其父节点的位置加上旋转后的位移向量得到,即
+\[\vec{p}_j^{\text{ed}}=\vec{p}_{j-1}^{\text{ed}}+\mat{R}_{j-1}^{\text{tot}}\vec{l}_j\]
+代码实现如下:
+\begin{lstlisting}[language=c++]
+void ForwardKinematics(IKSystem & ik, int StartIndex) {
+    if (StartIndex == 0) {
+        ik.JointGlobalRotation[0] = ik.JointLocalRotation[0];
+        ik.JointGlobalPosition[0] = ik.JointLocalOffset[0];
+        StartIndex                = 1;
+    }
+    for (int i = StartIndex; i < ik.JointLocalOffset.size(); i++) {
+        // your code here: forward kinematics, update JointGlobalPosition and JointGlobalRotation
+        ik.JointGlobalRotation[i] = ik.JointGlobalRotation[i - 1] * ik.JointLocalRotation[i];
+        ik.JointGlobalPosition[i] = ik.JointGlobalPosition[i - 1] + ik.JointGlobalRotation[i - 1] * ik.JointLocalOffset[i];
+    }
+}
+\end{lstlisting}
+\subsection*{Sub-Task 2}
+CCD IK的思想是从末端关节开始,依次调整每个关节的旋转,使得末端关节逐渐接近目标位置.\\
+\indent 具体地,假定当前铰接刚体系统共有$n+1$个关节与$n$个连接关节的骨骼,希望末端的关节位置$\vec{p}_n$距离目标$t$尽可能接近.于是遍历第$n-1,\cdots,0$个关节,每次求解关节$i$处的旋转矩阵$\mat{R}_i^{\text{loc}}$使得调整后$\vec{p}_i$, $\vec{p}_n$和$t$三点共线(在\code{glm}库中,求解将向量\code{a}旋转到向量\code{b}对应的四元数可以用\code{glm::rotate}函数实现.),然后将更新后的$\mat{R}_i^{\text{loc}}$应用于第$i$个关节及其后续的所有关节,更新它们的位置.重复上述过程直到末端关节$\vec{p}_n$足够接近目标$t$或者达到最大迭代次数为止.代码实现如下:
+\begin{lstlisting}[language=c++]
+void InverseKinematicsCCD(IKSystem & ik, const glm::vec3 & EndPosition, int maxCCDIKIteration, float eps) {
+    ForwardKinematics(ik, 0);
+    // These functions will be useful: glm::normalize, glm::rotation, glm::quat * glm::quat
+    for (int CCDIKIteration = 0; CCDIKIteration < maxCCDIKIteration && glm::l2Norm(ik.EndEffectorPosition() - EndPosition) > eps; CCDIKIteration++) {
+        // your code here: ccd ik
+        for (int i = ik.NumJoints() - 2; i >= 0; i--) {
+            glm::vec3 v_st = ik.JointGlobalPosition[i], v_ed = ik.JointGlobalPosition[ik.JointLocalOffset.size() - 1];
+            glm::vec3 v = glm::normalize(v_ed - v_st), u = glm::normalize(EndPosition - v_st);
+            glm::quat q = glm::rotation(v, u);
+            ik.JointLocalRotation[i] = q * ik.JointLocalRotation[i];
+            ForwardKinematics(ik, 0);
+        }
+    }
+}
+\end{lstlisting}
+\subsection*{Sub-Task 3}
+FABR IK的思想是通过两次遍历关节链,根据骨骼长度调整关节位置,使得末端关节接近目标位置.\\
+\indent 具体地,假定当前铰接刚体系统共有$n+1$个关节与$n$个连接关节的骨骼,希望末端的关节位置$\vec{p}_n$距离目标$t$尽可能接近.\\
+\indent 首先是Backward步骤的计算.将末端关节$\vec{p}_n$移动到目标位置$t$,记$\vec{p}_n^{\text{back}}=\vec{t}$.接着,从末端关节向根节点遍历每个关节$i$($i=n-1,\cdots,0$),将$\vec{p}_i$更新到$\vec{p}_i^{\text{back}}$使得
+\[\left|\vec{p}_{i+1}^{\text{back}}-\vec{p}_i^{\text{back}}\right|=|\vec{l}_{i+1}|,\quad\vec{p}_i,\vec{p}_i^{\text{back}},\vec{p}_{i+1}^{\text{back}}\text{共线}\]
+于是可得
+\[\vec{p}_i^{\text{back}}=\vec{p}_{i+1}^{\text{back}}+\dfrac{\vec{p}_{i}-\vec{p}_{i+1}^{\text{back}}}{\left|\vec{p}_{i}-\vec{p}_{i+1}^{\text{back}}\right|}|\vec{l}_{i+1}|\]
+如此往复直到根节点位置.现在得到了一组新的关节位置$\left\{\vec{p}_{i}^{\text{back}}\right\}_{i=1}^{n}$.\\
+\indent 接下来是Forward步骤的计算.记$\vec{p}_0^{\text{for}}=\vec{p}_0^{\text{st}}$.接着从根节点向末端遍历每个关节$i$($i=1,\cdots,n$),将$\vec{p}_i^{\text{back}}$更新到$\vec{p}_i^{\text{for}}$使得
+\[\left|\vec{p}_{i}^{\text{for}}-\vec{p}_{i-1}^{\text{for}}\right|=|\vec{l}_{i}|,\quad\vec{p}_i^{\text{back}},\vec{p}_i^{\text{for}},\vec{p}_{i-1}^{\text{for}}\text{共线}\]
+于是可得
+\[\vec{p}_i^{\text{for}}=\vec{p}_{i-1}^{\text{for}}+\dfrac{\vec{p}_i^{\text{back}}-\vec{p}_{i-1}^{\text{for}}}{\left|\vec{p}_i^{\text{back}}-\vec{p}_{i-1}^{\text{for}}\right|}|\vec{l}_{i}|\]
+如此往复直到末端节点位置.现在得到了一组新的关节位置$\left\{\vec{p}_{i}^{\text{for}}\right\}_{i=1}^{n}$.这组新的关节满足骨骼长度约束,并且$\vec{p}_n$相比之前更接近目标$\vec{t}$.\\
+\indent 重复上述的Backward和Forward步骤直到终止条件为止.代码实现如下:
+\begin{lstlisting}[language=c++]
+void InverseKinematicsFABR(IKSystem & ik, const glm::vec3 & EndPosition, int maxFABRIKIteration, float eps) {
+    ForwardKinematics(ik, 0);
+    int nJoints = ik.NumJoints();
+    std::vector<glm::vec3> backward_positions(nJoints, glm::vec3(0, 0, 0)), forward_positions(nJoints, glm::vec3(0, 0, 0));
+    for (int IKIteration = 0; IKIteration < maxFABRIKIteration && glm::l2Norm(ik.EndEffectorPosition() - EndPosition) > eps; IKIteration++) {
+        // task: fabr ik
+        // backward update
+        glm::vec3 next_position         = EndPosition;
+        backward_positions[nJoints - 1] = EndPosition;
+
+        for (int i = nJoints - 2; i >= 0; i--) {
+            // your code here
+            glm::vec3 dir         = glm::normalize(ik.JointGlobalPosition[i] - backward_positions[i + 1]);
+            float     len         = glm::length(ik.JointOffsetLength[i + 1]);
+            backward_positions[i] = backward_positions[i + 1] + len * dir;
+        }
+
+        // forward update
+        glm::vec3 now_position = ik.JointGlobalPosition[0];
+        forward_positions[0] = ik.JointGlobalPosition[0];
+        for (int i = 0; i < nJoints - 1; i++) {
+            // your code here
+            glm::vec3 dir            = glm::normalize(backward_positions[i + 1] - forward_positions[i]);
+            float     len            = glm::length(ik.JointOffsetLength[i + 1]);
+            forward_positions[i + 1] = forward_positions[i] + len * dir;
+        }
+        ik.JointGlobalPosition = forward_positions; // copy forward positions to joint_positions
+    }
+
+    // Compute joint rotation by position here.
+    for (int i = 0; i < nJoints - 1; i++) {
+        ik.JointGlobalRotation[i] = glm::rotation(glm::normalize(ik.JointLocalOffset[i + 1]), glm::normalize(ik.JointGlobalPosition[i + 1] - ik.JointGlobalPosition[i]));
+    }
+    ik.JointLocalRotation[0] = ik.JointGlobalRotation[0];
+    for (int i = 1; i < nJoints - 1; i++) {
+        ik.JointLocalRotation[i] = glm::inverse(ik.JointGlobalRotation[i - 1]) * ik.JointGlobalRotation[i];
+    }
+    ForwardKinematics(ik, 0);
+}
+\end{lstlisting}
+\section*{Sub-Task 4}
+使用简单的直线和三角函数绘制了姓名首字母,绘图的参数化实现\code{custom\_x}和\code{custom\_y}如下所示:
+\begin{lstlisting}[language=c++]
+float pi = glm::pi<float>();
+float clamp(float t, float min_t, float max_t) {
+    return (t < max_t && t >= min_t) ? 1.0f : 0.0f;
+}
+float custom_x(float t) {
+    return clamp(t, 0, pi) * (-4.0f + t * 2 / pi)
+        + clamp(t, pi, 2 * pi) * (-3.0f)
+        + clamp(t, 2 * pi, 3 * pi) * (0.5f * cos(t - 2 * pi) - 3.5f)
+        + clamp(t, 3 * pi, 4 * pi) * (-1.0f + (t - 3 * pi) * 2 / pi)
+        + clamp(t, 4 * pi, 5 * pi) * 0.0f
+        + clamp(t, 5 * pi, 6 * pi) * (0.5f * cos(t - 5 * pi) - 0.5f)
+        + clamp(t, 6 * pi, 7 * pi) * 2.0f
+        + clamp(t, 7 * pi, 8 * pi) * (2.0f + (t - 7 * pi) * 2 / pi)
+        + clamp(t, 8 * pi, 9 * pi) * 4.0f;
+}
+float custom_y(float t) {
+    return clamp(t, 0, pi) * 1.0f
+        + clamp(t, pi, 2 * pi) * (1.0f - (t - pi) * 1.5 / pi)
+        + clamp(t, 2 * pi, 3 * pi) * (0.5f * (-sin(t - 2 * pi)) - 0.5f)
+        + clamp(t, 3 * pi, 4 * pi) * 1.0f
+        + clamp(t, 4 * pi, 5 * pi) * (1.0f - (t - 4 * pi) * 1.5 / pi)
+        + clamp(t, 5 * pi, 6 * pi) * (0.5f * (-sin(t - 5 * pi)) - 0.5f)
+        + clamp(t, 6 * pi, 7 * pi) * (1.0f - (t - 6 * pi) * 2 / pi)
+        + clamp(t, 7 * pi, 8 * pi) * 0.0f
+        + clamp(t, 8 * pi, 9 * pi) * (1.0f - (t - 8 * pi) * 2 / pi);
+}
+\end{lstlisting}
+此外在\code{tasks.cpp}文件中的\code{BuildCustomTargetPosition()}函数也进行了对参数\code{t}的范围和偏移量的适当修改以适应新的图形.最终实现的效果图如下:
+\begin{figure}[H]
+    \centering\includegraphics[scale=0.3]{figure/Custom.png}
+    \caption{绘制姓名首字母的效果图}
+\end{figure}
+\section*{问题回答}
+\begin{enumerate}[label=\tbf{\arabic*.},leftmargin=*]
+    \item 如果目标位置太远,无法到达, IK结果会怎样?\\
+    \textit{答}:根据IK的原理,(在没有角度限制的情况下)各个节点将连成指向目标位置的直线,也即能使得末端节点最接近目标位置的关节旋转方式.
+    \item 比较CCD IK和FABR IK所需要的迭代次数.\\
+    \textit{答}: FABR IK的迭代次数更少. CCD IK的更新方式是旋转关节,每次只能逐关节地改善末端位置,且改变关节也会对之前的迭代结果产生影响;而FABR IK的更新方式是直接移动关节点坐标,是一种更加整体且直接的方式,需要的迭代次数更少.
+    \item 由于IK是多解问题,在个别情况下,会出现前后两帧关节旋转抖动的情况.怎样避免或是缓解这种情况?\\
+    \textit{答}: 一种方法是对计算出的多个解优先选择与上一帧最接近的解,但是会产生额外的性能开销;另一种方法是限制每两帧之间各个关节的角度变化,这在物理上更加合理,但是可能产生延迟.
+\end{enumerate}
+\section*{Task 2: Mass-Spring System}
+隐式欧拉积分需要求解的方程如下:
+\[\vec{x}(t_{k+1})=\vec{x}(t_k)+\vec{v}(t_{k+1})\Delta t\]
+\[\vec{v}(t_{k+1})=\vec{v}(t_k)+\mat{M}^{-1}\vec{f}(t_{k+1})\Delta t\]
+这样需要解一个隐式方程组.将$\vec{v}(t_{k+1})$代入$\vec{x}(t_{k+1})$中可得
+\[\vec{x}(t_{k+1})=\vec{x}(t_k)+\left(\vec{v}(t_k)+\mat{M}^{-1}\vec{f}(t_{k+1})\Delta t\right)\Delta t\]
+为了方便考虑,把力$\vec{f}$分成内力和外力两部分:
+\[\vec{f}(t_{k+1})=\vec{f}_{\text{int}}(t_{k+1})+\vec{f}_{\text{ext}}\]
+其中$\vec{f}_{\text{ext}}$作为外力与时间和质点的位置无关.于是进一步整理可得
+\[\vec{x}(t_{k+1})=\left[\vec{x}(t_k)+\Delta t\vec{v}(t_k)+(\Delta t)^2\mat{M}^{-1}\vec{f}_{\text{ext}}\right]+(\Delta t)^2\mat{M}^{-1}\vec{f}_{\text{int}}(t_{k+1})\]
+等号右边前半部分全部为已知量,不妨记作$\vec{y}(t_k)$.于是方程组即为
+\[\vec{x}(t_{k+1})-\vec{y}(t_k)-(\Delta t)^2\mat{M}^{-1}\vec{f}_{\text{int}}(t_{k+1})=\mbf{0}\]
+接下来需要将内力$\vec{f}_{\text{int}}(t_{k+1})$表示成位置$\vec{x}(t_{k+1})$的函数.对于质点$i$与$j$之间的弹簧,其弹性势能
+\[E_{ij}=\dfrac12k_{ij}\left(\left|\left|\vec{x}_j-\vec{x}_i\right|\right|-l_{ij}\right)^2\]
+于是
+\[\vec{f}_{ij}=-\dfrac{\p E_{ij}}{\p\vec{x}_i}\]
+从而对于质点$i$,其内力$\vec{f}_{i,\text{int}}$就可以写作
+\[\vec{f}_{i,\text{int}}=-\sum_{j\in\Omega(i)}\dfrac{\p E_{ij}}{\p\vec{x}_i}=-\dfrac{\p E}{\p\vec{x}_i}\]
+其中$E$为弹簧系统的总能量(与$i$不相连的弹簧的势能对$\vec{x}_i$的梯度为$\mbf{0}$,因此可以并入求和项中),其自变量为各质点的位置向量$\vec{x}$.将所有质点的内力堆叠起来,我们就有
+\[\vec{x}(t_{k+1})-\vec{y}(t_k)+(\Delta t)^2\mat{M}^{-1}\dfrac{\p E(\vec{x}(t_{k+1}))}{\p \vec{x}}=\mbf{0}\]
+于是,可以构造辅助函数
+\[g(\vec{x})=\dfrac{1}{2(\Delta t)^2}(\vec{x}-\vec{y}(t_k))^\t\mat{M}(\vec{x}-\vec{y}(t_k))+E(\vec{x})\]
+则有
+\[\dfrac{\p g(\vec{x})}{\p\vec{x}}=\dfrac{\mat{M}}{(\Delta t)^2}\left[\vec{x}-\vec{y}(t_k)+(\Delta t)^2\mat{M}^{-1}\dfrac{\p E(\vec{x})}{\p \vec{x}}\right]\]
+可以发现当$\vec{x}=\vec{x}(t_{k+1})$时恰好有$\dfrac{\p g(\vec{x})}{\p\vec{x}}=\mbf0$.于是,目标就转化为最小化问题
+\[\vec{x}(t_{k+1})=\arg\min_{\vec{x}}g(\vec{x})\]
+\indent 采取牛顿法解决上述问题.牛顿法的基本思想是在每轮迭代中使用一个二次函数逼近目标函数,然后求解该二次函数的极小值对应的$\vec{x}$作为下一次迭代的点.迭代过程每次通过尝试解$\vec{x}^{(i)}$计算下一次的解$\vec{x}^{(i+1)}$.对$g(\vec{x})$在$\vec{x}^{(i)}$处进行二阶泰勒展开,有
+\[g(\vec{x})=g(\vec{x}^{(i)})+\nabla g(\vec{x}^{(i)})\cdot(\vec{x}-\vec{x}^{(i)})+\dfrac12(\vec{x}-\vec{x}^{(i)})^{\t}\mat{H}_g(\vec{x}^{(i)})(\vec{x}-\vec{x}^{(i)})+o(||\vec{x}-\vec{x}^{(i)}||^3)\]
+其中$\nabla=\dfrac{\p}{\p\vec{x}}$, $\mat{H}_g$为$g$的Hessian矩阵.忽略高阶无穷小量,下一轮迭代的解$\vec{x}^{(i+1)}$应当为上述二次函数的极小值点.于是对上式两边求梯度并代入$\vec{x}^{(i+1)}$可得
+\[\mbf0=\nabla g(\vec{x}^{(i+1)})=\nabla g(\vec{x}^{(i)})+\mat{H}_g(\vec{x}^{(i)})(\vec{x}^{(i+1)}-\vec{x}^{(i)})\]
+于是下一轮迭代的解即为线性方程组
+\[\mat{H}_g(\vec{x}^{(i)})(\vec{x}^{(i+1)}-\vec{x}^{(i)})=-\nabla g(\vec{x}^{(i)})\]
+的解.对于弹簧质点系统,认为$g(\vec{x})$的性质比较良好,只需一次迭代就能求得较为准确的解.于是就有
+\[\mat{H}_g(\vec{x}(t_k))(\vec{x}(t_{k+1})-\vec{x}(t_k))=-\nabla g(\vec{x}(t_k))\]
+根据$g(\vec{x})$的定义可知
+\[\nabla g(\vec{x}(t_k))=\dfrac{1}{(\Delta t)^2}\mat{M}(\vec{x}(t_k)-\vec{y}(t_k))+\nabla E(\vec{x}(t_k))\]
+\[\mat{H}_g(\vec{x}(t_k))=\dfrac{1}{(\Delta t)^2}\mat{M}+\mat{H}_E(\vec{x}(t_k))\]
+其中$\mat{H}_E(\vec{x})$为能量函数$E(\vec{x})$的Hessian矩阵.\\
+\indent 对于$\nabla E(\vec{x}(t_k))$,我们可以把它写成对各个质点的位置$\vec{x}_i$的梯度$\nabla_i E(\vec{x})=\dfrac{\p E(\vec{x})}{\p \vec{x}_i}$的堆叠向量,并且已经知道质点$i$受到的内力之和等于能量的负梯度,于是
+\[\nabla E(\vec{x}(t_k))=\begin{bmatrix}
+    \nabla_1 E(\vec{x})\\\cdots\\\nabla_n E(\vec{x})
+\end{bmatrix}_{\vec{x}=\vec{x}(t_k)}=-\begin{bmatrix}
+    \vec{f}_{1,\text{int}}(t_k)\\\cdots\\\vec{f}_{n,\text{int}}(t_k)
+\end{bmatrix}\]
+\indent 接下来考虑$\mat{H}_E(\vec{x}(t_k))$.根据弹簧质点模型的定义,系统的总势能为各个弹簧势能之和:
+\[E(\vec{x})=\sum_{(i,j)}E_{ij}(\vec{x})\]
+其中$(i,j)$表示以弹簧相连的质点.于是
+\[\mat{H}_E(\vec{x})=\sum_{(i,j)}\mat{H}_{E_{ij}}(\vec{x})\]
+其中$\mat{H}_{E_{ij}}(\vec{x})$为单个弹簧势能$E_{ij}(\vec{x})$的Hessian矩阵.根据定义$E_{ij}=\dfrac12k_{ij}\left(\left|\left|\vec{x}_j-\vec{x}_i\right|\right|-l_{ij}\right)^2$有
+\[\mat{H}_{ij}:=\dfrac{\p^2E_{ij}(\vec{x})}{\p\vec{x}_i^2}=k_{ij}\dfrac{(\vec{x}_i-\vec{x}_j)(\vec{x}_i-\vec{x}_j)^\t}{||\vec{x}_i-\vec{x}_j||^2}+k_{ij}\left(1-\dfrac{l_{ij}}{||\vec{x}_i-\vec{x}_j||}\right)\left(\mat{I}-\dfrac{(\vec{x}_i-\vec{x}_j)(\vec{x}_i-\vec{x}_j)^\t}{||\vec{x}_i-\vec{x}_j||^2}\right)\]
+\[\dfrac{\p^2E_{ij}(\vec{x})}{\p\vec{x}_j^2}=\mat{H}_{ij},\quad \dfrac{\p^2E_{ij}(\vec{x})}{\p\vec{x}_i\p\vec{x}_j}=-\mat{H}_{ij}\]
+对于$E_{ij}(\vec{x})$而言,其值仅与$\vec{x}$中第$i$个向量$\vec{x}_i$和第$j$个向量$\vec{x}_j$有关.于是将$E_{ij}(\vec{x})$的Hessian矩阵$\mat{H}_{E_{ij}}(\vec{x})$视作由$N\times N$个$3\times 3$子矩阵组成的矩阵,只有$(i,i),(j,j),(i,j),(j,i)$四个子矩阵非零,且分别为$\mat{H}_{ij},\mat{H}_{ij},-\mat{H}_{ij},-\mat{H}_{ij}$.这就求得了$\mat{H}_E$,于是再代入前述公式即可得隐式欧拉积分的迭代公式.\\
+\indent 最后将隐式欧拉积分求解弹簧质点系统的过程总结如下:
+\begin{enumerate}[label=\tbf{\arabic*.}]
+    \item 遍历系统中的所有弹簧,然后进行如下两个操作:
+    \begin{enumerate}[label=\tbf{\alph*.}]
+        \item 根据弹力的计算公式
+        \[\vec{f}_{ij}=-k_{ij}(\lvert\vec{x}_i-\vec{x}_j\rvert-l_{ij})\dfrac{\vec{x}_i-\vec{x}_j}{\lvert\vec{x}_i-\vec{x}_j\rvert}\]计算弹簧所连接的两个质点$i,j$的内力$\vec{f}_{ij},\vec{f}_{ji}$,并将其累加到质点$i,j$的总内力$\vec{f}_{i,\text{int}},\vec{f}_{j,\text{int}}$上.
+        \item 根据弹簧的Hessian矩阵计算公式
+        \[\mat{H}_{ij}=\dfrac{\p^2E_{ij}(\vec{x})}{\p\vec{x}_i^2}=k_{ij}\dfrac{(\vec{x}_i-\vec{x}_j)(\vec{x}_i-\vec{x}_j)^\t}{||\vec{x}_i-\vec{x}_j||^2}+k_{ij}\left(1-\dfrac{l_{ij}}{||\vec{x}_i-\vec{x}_j||}\right)\left(\mat{I}-\dfrac{(\vec{x}_i-\vec{x}_j)(\vec{x}_i-\vec{x}_j)^\t}{||\vec{x}_i-\vec{x}_j||^2}\right)\]
+        计算质点$i,j$对应的Hessian子矩阵,并将其累加到系统总能量的Hessian矩阵$\mat{H}_E$的对应位置上.
+    \end{enumerate}
+    完成上述两步后即可求出$\nabla E$和$\mat{H}_E$.
+    \item 根据$\vec{y}(t_k)$的定义
+    \[\vec{y}(t_k)=\vec{x}(t_k)+\Delta t\vec{v}(t_k)+(\Delta t)^2\mat{M}^{-1}\vec{f}_{\text{ext}}\]
+    求出$\vec{y}(t_k)$.
+    \item 根据$\nabla g(\vec{x}(t_k))$和$\mat{H}_g(\vec{x}(t_k))$的定义
+    \[\nabla g(\vec{x}(t_k))=\dfrac{1}{(\Delta t)^2}\mat{M}(\vec{x}(t_k)-\vec{y}(t_k))+\nabla E(\vec{x}(t_k))\]
+    \[\mat{H}_g(\vec{x}(t_k))=\dfrac{1}{(\Delta t)^2}\mat{M}+\mat{H}_E(\vec{x}(t_k))\]
+    求出$\nabla g(\vec{x}(t_k))$和$\mat{H}_g(\vec{x}(t_k))$.
+    \item 求解线性方程组
+    \[\mat{H}_g(\vec{x}(t_k))(\vec{x}(t_{k+1})-\vec{x}(t_k))=-\nabla g(\vec{x}(t_k))\]
+    得到$\bs\delta=\vec{x}(t_{k+1})-\vec{x}(t_k)$.
+    \item 根据隐式欧拉的基本公式
+    \[\vec{x}(t_{k+1})=\vec{x}(t_k)+\bs\delta\]
+    \[\vec{v}(t_{k+1})=\dfrac{\bs\delta}{\Delta t}\]
+    计算更新后的位置$\vec{x}(t_{k+1})$和速度$\vec{v}(t_{k+1})$.如此就完成了一个时间间隔内的模拟.
+\end{enumerate}
+因此,依照上述过程的代码实现如下:
+\begin{lstlisting}[language=c++]
+void AdvanceMassSpringSystem(MassSpringSystem & system, float const dt) {
+    // your code here: rewrite following code
+    size_t nPoints = system.Positions.size();
+    std::vector<Eigen::Triplet<float>> triplets_H_E;
+    std::vector<glm::vec3>             vec_nabla_E(nPoints, glm::vec3(0.0f));
+    for (auto const spring : system.Springs) {
+        auto const i = spring.AdjIdx.first;
+        auto const j = spring.AdjIdx.second;
+        glm::vec3 const xi = system.Positions[i];
+        glm::vec3 const xj = system.Positions[j];
+        float           d  = glm::length(xi - xj);
+        glm::vec3       f  = system.Stiffness * (glm::length(xi - xj) - spring.RestLength) * (xi - xj) / d;
+        vec_nabla_E[i] += f;
+        vec_nabla_E[j] -= f;
+        glm::mat3       C  = glm::outerProduct(xi - xj, xi - xj) / (d * d);
+        glm::mat3       I(1.0f);
+        glm::mat3       H = system.Stiffness * (C + (1.0f - spring.RestLength / d) * (I - C));
+        for (int col = 0; col < 3; ++col) {
+            for (int row = 0; row < 3; ++row) {
+                float val = H[col][row];
+                triplets_H_E.emplace_back(3 * i + row, 3 * i + col, val);
+                triplets_H_E.emplace_back(3 * j + row, 3 * j + col, val);
+                triplets_H_E.emplace_back(3 * i + row, 3 * j + col, -val);
+                triplets_H_E.emplace_back(3 * j + row, 3 * i + col, -val);
+            }
+        }
+    }
+    auto H_E = CreateEigenSparseMatrix(3 * nPoints, triplets_H_E);
+    auto nabla_E = glm2eigen(vec_nabla_E);
+    std::vector<glm::vec3> vec_x_k(nPoints, glm::vec3(0.0f));
+    std::vector<glm::vec3> vec_y_k(nPoints, glm::vec3(0.0f));
+    for (size_t i = 0; i < nPoints; ++i) {
+        vec_x_k[i] = system.Positions[i];
+        vec_y_k[i] = system.Positions[i] + dt * system.Velocities[i] + dt * dt * glm::vec3(0, -system.Gravity, 0);
+    }
+    std::vector<Eigen::Triplet<float>> triplets_M;
+    for (size_t i = 0; i < 3 * nPoints; ++i) {
+        triplets_M.emplace_back(i, i, system.Mass);
+    }
+    auto M = CreateEigenSparseMatrix(3 * nPoints, triplets_M);
+
+    auto x_k = glm2eigen(vec_x_k);
+    auto y_k = glm2eigen(vec_y_k);
+
+    auto nabla_g = system.Mass * (x_k - y_k) / (dt * dt) + nabla_E;
+    auto H_g     = M / (dt * dt) + H_E;
+
+    std::vector<glm::vec3> vec_x_res = eigen2glm(ComputeSimplicialLLT(H_g, -nabla_g));
+    for (size_t i = 0; i < nPoints; ++i) {
+        if (system.Fixed[i]) continue;
+        system.Positions[i] += vec_x_res[i];
+        system.Velocities[i] = vec_x_res[i] / dt;
+    }
+}
+\end{lstlisting}
+实现的效果图如下:
+\begin{figure}[H]
+    \centering\includegraphics[scale=0.35]{figure/Euler.png}
+    \caption{使用隐式欧拉法求解弹簧质点模型的效果图}
+\end{figure}
+\end{document}

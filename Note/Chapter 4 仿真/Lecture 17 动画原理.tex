@@ -55,10 +55,10 @@
 \tbf{逆向运动学(Inverse Kinematics, IK)}的任务与前向运动学恰恰相反,其需要根据给定的部分关节的位置$\vec{p}_i$(包括但是不仅限于末关节)，反向求解出一组关节局部旋转$\mat{R}_i^{\text{loc}}$的解.逆向运动学可以被用于机械臂或者是虚拟角色的控制,也可以帮助修复一些质量较差,没有满足部分接触要求的动作捕捉数据.\\
 \indent 对于简单的,具有两个骨骼的系统, IK问题有解析的解.然而,对于更复杂的系统,我们只能通过数值方法求解IK问题.下面介绍两种常用的方法:\tbf{循环坐标推演(Cyclic Coordinate Descent, CCD)}和\tbf{前向后向抵达(Forward and Backward Reaching, FABR)}.
 \paragraph{CCD IK}
-CCD的思想是从末端关节开始,依次调整每个关节的旋转,使得末端关节逐渐接近目标位置.\\
+CCD IK的思想是从末端关节开始,依次调整每个关节的旋转,使得末端关节逐渐接近目标位置.\\
 \indent 具体地,假定当前铰接刚体系统共有$n+1$个关节与$n$个连接关节的骨骼,我们希望末端的关节位置$\vec{p}_n$距离目标$t$尽可能接近.于是遍历第$n-1,\cdots,0$个关节,每次求解关节$i$处的旋转矩阵$\mat{R}_i^{\text{loc}}$使得调整后$\vec{p}_i$, $\vec{p}_n$和$t$三点共线\footnote{确切地说,是令$\vec{p}_n-\vec{p}_i$和$\vec{t}-\vec{p}_i$同向.在\code{glm}库中,求解将向量\code{a}旋转到向量\code{b}对应的四元数可以用\code{glm::rotate}函数实现.},然后将更新后的$\mat{R}_i^{\text{loc}}$应用于第$i$个关节及其后续的所有关节,更新它们的位置.重复上述过程直到末端关节$\vec{p}_n$足够接近目标$t$或者达到最大迭代次数为止.
 \paragraph{FABR IK}
-FABR的思想是通过两次遍历关节链,根据骨骼长度调整关节位置,使得末端关节接近目标位置.\\
+FABR IK的思想是通过两次遍历关节链,根据骨骼长度调整关节位置,使得末端关节接近目标位置.\\
 \indent 具体地,假定当前铰接刚体系统共有$n+1$个关节与$n$个连接关节的骨骼,我们希望末端的关节位置$\vec{p}_n$距离目标$t$尽可能接近.\\
 \indent 首先是Backward步骤的计算.我们将末端关节$\vec{p}_n$移动到目标位置$t$,记$\vec{p}_n^{\text{back}}=\vec{t}$.接着,我们从末端关节向根节点遍历每个关节$i$($i=n-1,\cdots,0$),将$\vec{p}_i$更新到$\vec{p}_i^{\text{back}}$使得
 \[\left|\vec{p}_{i+1}^{\text{back}}-\vec{p}_i^{\text{back}}\right|=|\vec{l}_{i+1}|,\quad\vec{p}_i,\vec{p}_i^{\text{back}},\vec{p}_{i+1}^{\text{back}}\text{共线}\]

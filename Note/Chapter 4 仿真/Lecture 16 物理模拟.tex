@@ -59,11 +59,11 @@
 于是,可以构造辅助函数
 \[g(\vec{x})=\dfrac{1}{2(\Delta t)^2}(\vec{x}-\vec{y}(t_k))^\t\mat{M}(\vec{x}-\vec{y}(t_k))+E(\vec{x})\]
 则有
-\[\dfrac{\p g(\vec{x})}{\p\vec{x}}=\vec{x}(t_{k+1})-\vec{y}(t_k)+(\Delta t)^2\mat{M}^{-1}\dfrac{\p E(\vec{x}(t_{k+1}))}{\p \vec{x}}=\mbf{0}\]
-于是,目标就转化为最小化问题
+\[\dfrac{\p g(\vec{x})}{\p\vec{x}}=\dfrac{\mat{M}}{(\Delta t)^2}\left[\vec{x}-\vec{y}(t_k)+(\Delta t)^2\mat{M}^{-1}\dfrac{\p E(\vec{x})}{\p \vec{x}}\right]\]
+可以发现当$\vec{x}=\vec{x}(t_{k+1})$时恰好有$\dfrac{\p g(\vec{x})}{\p\vec{x}}=\mbf0$.于是,目标就转化为最小化问题
 \[\vec{x}(t_{k+1})=\arg\min_{\vec{x}}g(\vec{x})\]
 \paragraph{最小化问题的数值求解}
-我们采取牛顿法解决上述问题.牛顿法的基本思想是在每轮迭代中使用一个二次函数逼近目标函数,然后求解该二次函数的极小值作为下一次迭代的点.迭代过程每次通过尝试解$\vec{x}^{(i)}$计算下一次的解$\vec{x}^{(i+1)}$.对$g(\vec{x})$在$\vec{x}^{(i)}$处进行二阶泰勒展开,有
+我们采取牛顿法解决上述问题.牛顿法的基本思想是在每轮迭代中使用一个二次函数逼近目标函数,然后求解该二次函数的极小值对应的$\vec{x}$作为下一次迭代的点.迭代过程每次通过尝试解$\vec{x}^{(i)}$计算下一次的解$\vec{x}^{(i+1)}$.对$g(\vec{x})$在$\vec{x}^{(i)}$处进行二阶泰勒展开,有
 \[g(\vec{x})=g(\vec{x}^{(i)})+\nabla g(\vec{x}^{(i)})\cdot(\vec{x}-\vec{x}^{(i)})+\dfrac12(\vec{x}-\vec{x}^{(i)})^{\t}\mat{H}_g(\vec{x}^{(i)})(\vec{x}-\vec{x}^{(i)})+o(||\vec{x}-\vec{x}^{(i)}||^3)\]
 其中$\nabla=\dfrac{\p}{\p\vec{x}}$, $\mat{H}_g$为$g$的Hessian矩阵.忽略高阶无穷小量,下一轮迭代的解$\vec{x}^{(i+1)}$应当为上述二次函数的极小值点.于是对上式两边求梯度并代入$\vec{x}^{(i+1)}$可得
 \[\mbf0=\nabla g(\vec{x}^{(i+1)})=\nabla g(\vec{x}^{(i)})+\mat{H}_g(\vec{x}^{(i)})(\vec{x}^{(i+1)}-\vec{x}^{(i)})\]
