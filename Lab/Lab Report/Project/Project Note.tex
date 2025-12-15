@@ -1,0 +1,40 @@
+\documentclass{ctexart}
+\usepackage{Note}
+\title{\textbf{流体模拟与渲染}}
+\date{\today}
+\begin{document}
+\maketitle
+\section{SPH基础}
+\subsection{核函数}
+我们已经经历了很多采样问题以从离散的样本点重建连续函数.对于流体而言,如果采取简单的近邻法划分空间并计算目标函数,往往会在边界上造成函数值的跳变,因而结果交叉.因此,我们需要采取一定的办法使得这种不连续性被平滑.一种自然的想法就是考虑目标点附近的所有粒子对该点性质的影响,并且距离越近的粒子影响越大.这就可以通过引入核函数$W(\vec{r},h)$进行加权平均而解决.\\
+\indent 一般而言,核函数$W$需要满足归一化性质,即在$d$维空间下有
+\[\int_{\R^d}W(||\vec{x}||)\di\vec{x}=1\]
+一种常用的核函数是三次样条函数:
+\[W(\vec{r},h)=\sigma\left\{\begin{array}{l}
+    6(q^3-q^2)+1,\quad 0\leq q\leq 1/2\\
+    2(1-q)^3,\quad 1/2<q\leq 1\\
+    0,\quad q>1
+\end{array}\right.\]
+其中$q=\dfrac{||\vec{r}||}{h}$, $h$为核函数的半径; $\sigma$为归一化系数,在二维空间中有$\sigma=\dfrac{40}{7\pi h^2}$,在三维空间中有$\sigma=\dfrac{8}{\pi h^3}$.在实践中,一般取$h$为初始状态下粒子平均间距的$1\sim 3$倍左右.
+\subsubsection{流体性质的计算}
+有了核函数之后,我们就可以根据粒子的位置和质量计算流体的密度和压强等性质.流体的密度场可计算如下:
+\[\rho(\vec{x})=\sum_{i}m_iW(||\vec{x}-\vec{x}_i||)\]
+类似地,流体的压强场及其梯度可计算如下:
+\[p(\vec{x})=\sum_{i}p_i\dfrac{m_i}{\rho_i}W(||\vec{x}-\vec{x}_i||)\]
+\[\nabla p(\vec{x})=\sum_{i}p_i\dfrac{m_i}{\rho_i}\nabla W(||\vec{x}-\vec{x}_i||)\]
+其中$p_i=k\left[\left(\dfrac{\rho_i}{\rho0}\right)^\gamma-1\right]$, $k,\gamma$为流体的常数, $\rho_0$为流体的静密度. $p_i$表示粒子$i$处的压强,其随$\rho_i$的增加而增加.于是在N-S方程中$-\nabla p$项就会将粒子从密度高的区域推向密度低的区域以维持近似不可压的状态.
+\subsubsection{N-S方程的求解}
+对于每个时间步,将模拟分为以下几个部分:
+\begin{enumerate}[label=\tbf{\arabic*.}]
+    \item \tbf{计算每个粒子处的密度和压强}:
+    \[\rho_i\leftarrow\sum_{i\in\Omega(i)}m_jW(\vec{x}_j-\vec{x}_i,h)\]
+    \[p_i\leftarrow k\left[\left(\dfrac{\rho_i}{\rho_0}\right)^\gamma-1\right]\]
+    \item \tbf{计算每个粒子处的受力和加速度}
+    \[\vec{f}_{i}^{\text{pressure}}\leftarrow-\dfrac{1}{\rho}\nabla p=-m_i\sum_{j\in\Omega(i)}m_j\left(\dfrac{p_i}{\rho_i^2}+\dfrac{p_j}{\rho_j^2}\right)\nabla W(\vec{x}_j-\vec{x}_i,h)\]
+    \[\vec{f}_{i}^{\text{visc}}\leftarrow\mu\sum_{j\in\Omega(i)}\dfrac{m_j}{\rho_j}(\vec{v}_j-\vec{v}_i)\]
+    \[\vec{a}_i\leftarrow\dfrac{1}{m_i}\left(\vec{f}_{i}^{\text{pressure}}+\vec{f}_{i}^{\text{visc}}+\vec{f}_i^{\text{ext}}\right)\]
+    \item \tbf{根据加速度更新速度与位置}
+    \[\vec{v}_i\leftarrow\vec{v}_i+\vec{a}_i\Delta t\]
+    \[\vec{x}_i\leftarrow\vec{x}_i+\vec{v}_i\Delta t\]
+\end{enumerate}
+\end{document}
