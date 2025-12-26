@@ -23,17 +23,32 @@
 \subsubsection{向量场的可视化方法}
 \paragraph{箭头表示法}
 对于向量场的可视化,使用\tbf{箭头(arrows)}表示某处的向量是最简单直接的方式.对于定义在域$D$上的矢量场$\vec{v}:D\to\R^n$表示每个$\vec{x}\in D$的矢量值,我们在$D$上进行采样(通常是网格点),并在每个采样点处绘制一个箭头.箭头的起点为采样点,方向和长度分别与矢量的方向和大小成正比.最终,向量场$\vec{v}$的可视化$\hat{\vec{v}}$是在采样点上的一组箭头.
-\paragraph{流场可视化}
+\subsubsection{流场可视化}
 在向量场可视化中,流场(例如水流,气流等)可视化是常见且重要的一种应用.我们先来介绍流场可视化中的基本物理量.
 \begin{definition}[流线]
     \tbf{流线(Streamline)}是指在流场中,与流体速度方向切线方向一致的曲线.流线可以表示流体在某一时刻的瞬时运动轨迹.
 \end{definition}
-\begin{definition}[迹线]
-    \tbf{迹线(Traceline)}是指同一空间位置持续释放的流体粒子在流场中随时间运动所形成的轨迹.迹线反映了流体粒子的历史运动路径.
-\end{definition}
+设流场在时刻$t_0$时的速度场为$\vec{v}(\vec{x},t_0)$.引入一个积分参数$s$,流线$\vec{x}(s)$可以定义为
+\[\dfrac{\di\vec{x}(s)}{\di s}=\vec{v}(\vec{x}(s),t_0),\quad\vec{x}(0)=\vec{x}_0\]
+流线反映了一个稳态流场(或非稳态流场的某个瞬时)的结构,它是与时间$t$无关的量.
 \begin{definition}[路径线]
     \tbf{路径线(Pathline)}是指在流场中,某一特定流体粒子随时间运动所形成的轨迹.路径线描述了单个流体粒子的运动过程.
 \end{definition}
+对于一个在时刻$t_0$处于位置$\vec{x}_0$的粒子,将其随时间变化的轨迹记为$\vec{x}(t)$,则有
+\[\dfrac{\di\vec{x}(t)}{\di t}=\vec{v}(\vec{x}(t),t),\quad\vec{x}(t_0)=\vec{x}_0\]
+这里的$\vec{x}(t)$即为该粒子的路径线.
+\begin{definition}[迹线]
+    \tbf{迹线(Traceline)}是指同一空间位置持续释放的流体粒子在流场中随时间运动所形成的轨迹.迹线反映了流体粒子的历史运动路径.
+\end{definition}
+对于在时间$\tau$被释放的粒子,用$\vec{x}(t;\tau)$表示其在$t\geq\tau$时所处的位置,则有
+\[\dfrac{\di\vec{x}(t;\tau)}{\di t}=\vec{v}(\vec{x}(t;\tau),t),\quad\vec{x}(\tau;\tau)=\vec{x}_0\]
+\paragraph{点噪声法}
+\tbf{点噪声法(Dot Noise)}的基本思想是在采样区域随机设置噪声点,并将它们的形状,方向,拉伸程度与局部向量信息相对应,从而在整体上形成密集且连续的流动纹理效果.\\
+\indent 可以用简单的线性组合描述图像:
+\[I(\vec{x})=I_0+\sum_{i}\alpha_i\cdot h(\vec{x}-\vec{i})\]
+其中$I_0$为本底颜色(即背景), $\alpha_i$为每个扩散核的系数, $h$为扩散核函数.
+\paragraph{线性积分卷积}
+\tbf{线性积分卷积(Line Integral Convolution, LIC)}的基本思想是沿着流场的流线对噪声进行采样和卷积.
 \subsection{表面数据和体积数据的可视化}
 \subsubsection{表面数据的可视化}
 容易想到表面数据的可视化可以按照渲染的方法进行,而我们已经介绍了一整套成熟的渲染方法.此外,表面数据主要依托于纹理进行存储,因此这也依赖于纹理映射技术.总之,这部分内容和渲染是高度重合的,这里也不做过多赘述.

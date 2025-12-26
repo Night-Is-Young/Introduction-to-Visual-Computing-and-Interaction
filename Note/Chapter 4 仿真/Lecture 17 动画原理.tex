@@ -71,6 +71,39 @@ FABR IK的思想是通过两次遍历关节链,根据骨骼长度调整关节位
 \[\vec{p}_i^{\text{for}}=\vec{p}_{i-1}^{\text{for}}+\dfrac{\vec{p}_i^{\text{back}}-\vec{p}_{i-1}^{\text{for}}}{\left|\vec{p}_i^{\text{back}}-\vec{p}_{i-1}^{\text{for}}\right|}|\vec{l}_{i}|\]
 如此往复直到末端节点位置.现在,我们得到了一组新的关节位置$\left\{\vec{p}_{i}^{\text{for}}\right\}_{i=1}^{n}$.这组新的关节满足骨骼长度约束,并且$\vec{p}_n$相比之前更接近目标$\vec{t}$.\\
 \indent 重复上述的Backward和Forward步骤直到末端关节$\vec{p}_n$足够接近目标$t$或者达到最大迭代次数为止.
+\paragraph{Jacobian IK}
+我们先来介绍一些有关Jacobian矩阵的知识.考虑非线性变换$(x,y)\mapsto(u,v)$,其微分关系为
+\[\di u=\dfrac{\p u}{\p x}\di x+\dfrac{\p u}{\p y}\di y,\quad\di v=\dfrac{\p v}{\p x}\di x+\dfrac{\p v}{\p y}\di y\]
+写成矩阵的形式则有
+\[\begin{bmatrix}
+    \di u\\\di v
+\end{bmatrix}=\begin{bmatrix}
+    \dfrac{\p u}{\p x}&\dfrac{\p u}{\p y}\\
+    \dfrac{\p v}{\p x}&\dfrac{\p v}{\p y}\\
+\end{bmatrix}\begin{bmatrix}
+    \di x\\\di y
+\end{bmatrix}\]
+记$\di\vec{a}=\begin{bmatrix}
+    \di x\\\di y
+\end{bmatrix},\di\vec{b}=\begin{bmatrix}
+    \di u\\\di v
+\end{bmatrix},\mat{J}=\begin{bmatrix}
+    \dfrac{\p u}{\p x}&\dfrac{\p u}{\p y}\\
+    \dfrac{\p v}{\p x}&\dfrac{\p v}{\p y}\\
+\end{bmatrix}$,则有
+\[\di\vec{b}=\mat{J}\di\vec{a}\]
+这就描述了两个坐标系之间的非线性变换的性质,矩阵$\mat{J}$被称作这一变换的Jacobian矩阵.\\
+\indent 现在我们考虑刚体铰链模型,末端位置$\vec{p}=\begin{bmatrix}
+    x&y&z
+\end{bmatrix}^\t$仅与各个关节的旋转角度$\theta_i$有关.记$\bs\theta=\begin{bmatrix}
+    \theta_1&\cdots&\theta_n
+\end{bmatrix}^\t$,类似地就有
+\[\di\vec{p}=\mat{J}\di\bs\theta\]
+我们的目标是为了确定末端位置如何从一个位置$\vec{p}_e$移动到另一个位置$\vec{p}_t$,这要求系统末端的位移为$\Delta\vec{p}=\vec{p}_e-\vec{p}_t$.当位移$\Delta\vec{p}$取的足够小时,我们就根据上述微分式近似地得到
+\[\Delta\vec{p}=\mat{J}\Delta\bs\theta\]
+然后对式子两边左乘Jacobian矩阵的逆即可得到
+\[\Delta\bs\theta=\mat{J}^{-1}\Delta\vec{p}\]
+根据位置变换$\Delta\vec{p}$即可求得各关节的角度变化$\Delta\bs\theta$.
 \subsection{动作捕捉}
 \tbf{动作捕捉(Motion Capture, Mocap)}是通过设备记录人和物体运动的方法.就角色来说,我们需要一些
 专业的动捕演员,让其穿戴特定的设备进行表演.在每一时刻,演员的肢体运动甚至面部表情会都会被设备记录下来,转化成骨骼的旋转数据,记录完毕后将其交给后续的处理流程.我们接下来介绍一些常用的动作捕捉设备及其原理.
@@ -79,4 +112,19 @@ FABR IK的思想是通过两次遍历关节链,根据骨骼长度调整关节位
 \indent 外骨骼的优点是可以提供高精度的关节旋转数据,且不受外部环境光线和遮挡的影响.然而,外骨骼设备通常较为笨重,限制了演员的动作自由度.
 \subsubsection{光学动作捕捉}
 光学动作捕捉系统是目前最常用的动作捕捉技术,通常使用多个摄像头来跟踪演员身上的发光或反光的标记点.摄像头捕捉到标记点的位置后,通过三角测量法计算出标记点在三维空间中的位置.然后,通过对这些位置数据进行处理,可以推断出演员的骨骼姿态和动作.
+\subsection{动作合成}
+动作捕捉得到的数据一般需要经过一系列的处理.本节主要介绍一些动作合成的技术.
+\subsubsection{动作连接}
+我们采集到的动捕数据往往只是一个动作片段,为生成完整,流畅的动作还需要将多段动捕数据中的动作串联起来.
+\subsubsection{动作对齐}
+简单的动作连接不能解决动作朝向不对齐的问题.例如动作$A$是一段向右的行走,动作$B$是一段向左的跑步,那么我们拼接之后会发现虚拟角色在从走切换到跑时突然调转了一个方向,并且在此过程中脚底还会出现明显的打滑现象.我们需要对齐$A$与$B$中人物的运动方向.\\
+\indent 在进行运动方向对齐前,我们先定义角色的\tbf{朝向坐标系(Facing Frame)}.
+\begin{definition}[朝向坐标系]
+    朝向坐标系是固定在角色上的一个局部坐标系,可以用参数$(\mat{R},\vec{t})$表示;旋转矩阵$\mat{R}$表示局部坐标系在世界坐标系下的旋转,平移向量$\vec{t}$表示局部坐标系的原点在世界坐标系下的位置.
+\end{definition}
+一般而言, $\vec{t}$取角色的根关节在世界坐标系下的位置, $\mat{R}$则是一个绕$y$轴的旋转,满足朝向坐标系的$z$轴指向角色面朝的方向.\\
+\indent 现在,记transition frame时刻$A,B$序列中的朝向坐标系分别为$\mat{R}_{A0},\vec{t}_{A0}$和$\mat{R}_{B0},\vec{t}_{B0}$,我们需要对$B$序列的朝向坐标系进行变换$\mathcal{T}$使得其与动作$A$的朝向坐标系在初始状态下先对齐,也即让动作$A$和动作$B$在连接开始时具有相同的朝向;然后考虑transition frame后的某一帧$i$, 在这一帧时动作序列$A$和$B$中的朝向坐标系分别为$\mat{R}_A(i),\vec{t}_A(i)$和$\mat{R}_B(i),\vec{t}_B(i)$.我们对$\mat{R}_B(i),\vec{t}_B(i)$做相同的变换$\mathcal{T}$,就得到了对齐后的动作$B'$,然后对$A$与$B'$进行动作连接即可.\\
+\indent 考虑在帧$i$时刻任取一个$\mat{R}_A(i),\vec{t}_A(i)$坐标系下的三维坐标$\vec{x}$,设其转换为$\mat{R}_{A0},\vec{t}_{A0}$坐标系下的坐标为$\vec{x}_0$;取$\mat{R}_B(i),\vec{t}_B(i)$坐标系下的同样的坐标$\vec{x}$,设其转换为$\mat{R}_{B0},\vec{t}_{B0}$坐标系下的坐标为$\vec{x}_1$,那么应当有如下关系:
+\[\vec{x}_0=\vec{x}_1\]
+
 \end{document}
