@@ -145,14 +145,9 @@ bool Update(InteractProxy const & proxy) {
     }
 }
 \end{lstlisting}
-上述几个部分就是结构体\code{CoordinateStates}的内容.在\code{PaintParallelCoordinates}函数中实现所有功能的代码如下:
+在\code{PaintParallelCoordinates}函数中实现所有功能的代码如下:
 \begin{lstlisting}[language=c++]
 bool PaintParallelCoordinates(Common::ImageRGB & input, InteractProxy const & proxy, std::vector<Car> const & data, bool force) {
-    // your code here
-    // for example: 
-    //   static CoordinateStates states(data);
-    //   SetBackGround(input, glm::vec4(1));
-    //   ...
     static CoordinateStates states(data);                  // initialize
     bool                    change = states.Update(proxy); // update according to user input
     if (! force && ! change) return false;                 // determine to skip repainting
@@ -160,4 +155,110 @@ bool PaintParallelCoordinates(Common::ImageRGB & input, InteractProxy const & pr
     return true;
 }
 \end{lstlisting}
+最终实现的效果如下所示:
+\begin{figure}[H]\centering
+    \subfigure[基本效果]{
+        \includegraphics[scale=0.08]{figure/PC-1.png}
+    }\qquad
+    \subfigure[左键单击更换主轴]{
+        \includegraphics[scale=0.08]{figure/PC-2.png}
+    }
+    \subfigure[右键单击交换坐标轴]{
+        \includegraphics[scale=0.08]{figure/PC-3.png}
+    }\qquad
+    \subfigure[右键单击交换坐标轴]{
+        \includegraphics[scale=0.08]{figure/PC-4.png}
+    }
+    \caption{Parallel Coordinates Visualization}
+\end{figure}
+\section*{Task 2: Flow Visualization}
+按照LIC的原理进行采样-卷积,代码如下所示:
+\begin{lstlisting}
+void LIC(ImageRGB & output, Common::ImageRGB const & noise, VectorField2D const & field, int const & step) {
+    // your code here
+    int width = output.GetSizeX(), height = output.GetSizeY();
+    float     x, y, dt_x, dt_y, dt;
+    float     forward_total, backward_total, weight;
+    glm::vec3 forward_sum, backward_sum;
+    for (int i = 0; i < width; ++i) {
+        for (int j = 0; j < height; ++j) {
+            x             = i;
+            y             = j;
+            forward_sum   = glm::vec3(0);
+            forward_total = 0;
+            for (int k = 0; k < step; ++k) {
+                glm::vec2 v = field.At((int) x, (int) y);
+                dt_x        = 0;
+                dt_y        = 0;
+                if (v.x > 0) {
+                    dt_x = ((std::floor(x) + 1) - x) / v.x;
+                } else if (v.x < 0) {
+                    dt_x = (x - (std::ceil(x) - 1)) / (-v.x);
+                }
+                if (v.y > 0) {
+                    dt_y = ((std::floor(y) + 1) - y) / v.y;
+                } else if (v.y < 0) {
+                    dt_y = (y - (std::ceil(y) - 1)) / (-v.y);
+                }
+                if (v.x == 0 && v.y == 0) dt = 0;
+                else dt = std::min(dt_x, dt_y);
+                x = std::min(std::max(x + v.x * dt, 0.0f), width - 1.0f);
+                y = std::min(std::max(y + v.y * dt, 0.0f), height - 1.0f);
+                weight = std::pow(std::cos(0.46 * k), 2);
+                forward_sum += noise.At((int) x, int(y)) * weight;
+                forward_total += weight;
+            }
+            x              = i;
+            y              = j;
+            backward_sum   = glm::vec3(0);
+            backward_total = 0;
+            for (int k = 1; k < step; ++k) {
+                glm::vec2 v = (-1.0f) * field.At((int) x, (int) y);
+                dt_x        = 0;
+                dt_y        = 0;
+                if (v.x > 0) {
+                    dt_x = ((std::floor(x) + 1) - x) / v.x;
+                } else if (v.x < 0) {
+                    dt_x = (x - (std::ceil(x) - 1)) / (-v.x);
+                }
+                if (v.y > 0) {
+                    dt_y = ((std::floor(y) + 1) - y) / v.y;
+                } else if (v.y < 0) {
+                    dt_y = (y - (std::ceil(y) - 1)) / (-v.y);
+                }
+                if (v.x == 0 && v.y == 0) dt = 0;
+                else dt = std::min(dt_x, dt_y);
+                x      = std::min(std::max(x + v.x * dt, 0.0f), width - 1.0f);
+                y      = std::min(std::max(y + v.y * dt, 0.0f), height - 1.0f);
+                weight = std::pow(std::cos(-0.46 * k), 2);
+                backward_sum += noise.At((int) x, int(y)) * weight;
+                backward_total += weight;
+            }
+            output.At(i, j) = (forward_sum + backward_sum) / (forward_total + backward_total);
+        }
+    }
+}
+\end{lstlisting}
+实现的效果图如下:
+\begin{figure}[H]\centering
+    \subfigure[$\text{Step}=10$]{
+        \includegraphics[scale=0.2]{figure/FV-B-10.png}
+    }\qquad\subfigure[$\text{Step}=40$]{
+        \includegraphics[scale=0.2]{figure/FV-B-40.png}
+    }\caption{对Bipole流场的可视化}
+\end{figure}
+\begin{figure}[H]\centering
+    \subfigure[$\text{Step}=10$]{
+        \includegraphics[scale=0.2]{figure/FV-C-10.png}
+    }\qquad\subfigure[$\text{Step}=40$]{
+        \includegraphics[scale=0.2]{figure/FV-C-40.png}
+    }\caption{对Circle流场的可视化}
+\end{figure}
+\begin{figure}[H]\centering
+    \subfigure[$\text{Step}=10$]{
+        \includegraphics[scale=0.2]{figure/FV-T-10.png}
+    }\qquad\subfigure[$\text{Step}=40$]{
+        \includegraphics[scale=0.2]{figure/FV-T-40.png}
+    }\caption{对Turbulence流场的可视化}
+\end{figure}
 \end{document}
