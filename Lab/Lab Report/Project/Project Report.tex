@@ -1,0 +1,103 @@
+\documentclass{ctexart}
+\usepackage{Note}
+\linespread{1.25}
+\geometry{left=1.0cm,right=1.0cm,top=1.5cm,bottom=1.5cm}
+\title{\textbf{二维/三维情况下的光滑粒子流体模拟和流体的简单非真实渲染}}
+\author{蒋锦豪 2400011785}
+\date{\today}
+\begin{document}
+\maketitle
+限于篇幅,有关光滑粒子流体模拟的物理原理和代码实现的具体细节不再给出.该报告主要展示项目实现的效果和一些主要思路.
+\section{二维光滑粒子流体模拟}
+\subsection{基本功能}
+在\code{System2d.h}中定义了结构体\code{SPHParams}和类\code{SPHSystem2d},分别用于存储光滑粒子流体模拟的参数和系统状态.类\code{SPHParams}主要包括:
+\begin{lstlisting}[language=C++]
+class SPHSystem2d {
+public:
+    std::vector<glm::vec3> positions;   //保存粒子的位置
+    std::vector<glm::vec3> velocities;  //保存粒子的速度
+    std::vector<float>     densities;   //保存粒子按照插值计算的密度
+    std::vector<float>     pressures;   //保存粒子按照状态方程计算的压力
+    std::vector<glm::vec3> forces;      //保存粒子受到的力
+    int numFluidParticles = 0;      //流体粒子数量
+    int numTotalParticles = 0;      //总粒子数量(包括边界粒子)
+    SPHParams params;               //光滑粒子流体模拟的参数
+    SPHSystem2d();
+    SPHSystem2d(const SPHParams & p);
+    void Advance2dSPHSystem(const SPHParams & p);   //推进系统状态
+private:
+    //构建空间哈希网格用于邻域搜索(此处略去)
+    //核函数的系数以及核函数的定义(此处略去)
+    void BuildGrid();   //根据粒子的位置构建空间哈希网格
+    void ComputeDensities();    //计算粒子的密度
+    void ComputeForces();   //计算粒子受到的力
+    void IntegrateAndCollide();     //使用显式欧拉积分更新粒子的位置和速度
+};
+\end{lstlisting}
+
+\indent 在\code{SPHSystem2d}中,主要包含了粒子的位置、速度、质量等信息,以及用于计算密度、压力和力的函数.在每一帧更新中,首先计算每个粒子的密度,然后根据密度计算压力,最后计算每个粒子受到的力并更新其位置和速度.为了使模拟更流畅,使用了OpenMP对所有循环进行加速.\\
+\indent 在\code{CaseSPHSystm2d.cpp}中实现了二维光滑粒子流体模拟的可视化界面,使用着色器\code{SPH2d.frag}和\code{SPH2d.vert}将流体粒子渲染为圆形,其颜色根据速度的大小插值决定;同时实现了初始化,将边界设置为固定不动的粒子.\\
+\indent 此外,在左边的菜单栏中,可以调整光滑粒子流体模拟的参数,如粒子数量,每一帧的迭代次数,粘性系数等.通过调整这些参数,可以观察到不同的流体行为和效果.下面是一些二维光滑粒子流体模拟的效果图:
+\begin{figure}[H]\centering
+    \subfigure[自由流动I]{\centering
+        \includegraphics[scale=0.18]{figure/1-1.png}
+    }
+    \subfigure[自由流动II]{\centering
+        \includegraphics[scale=0.18]{figure/1-2.png}
+    }
+    \subfigure[自由流动III]{\centering
+        \includegraphics[scale=0.18]{figure/1-3.png}
+    }\caption{自由流动效果图(初始状态为排列整齐的矩形)}
+\end{figure}
+\subsection{交互功能}
+此外,实现了对流体的交互功能.按下鼠标左键将对流体施加指向鼠标位置的引力,按下鼠标右键将对流体施加指向鼠标位置的斥力.通过这种方式,可以观察到流体在受到外力作用下的动态变化.下面是一些交互效果图:
+\begin{figure}[H]\centering
+    \subfigure[引力作用I]{\centering
+        \includegraphics[scale=0.18]{figure/2-1.png}
+    }
+    \subfigure[引力作用II]{\centering
+        \includegraphics[scale=0.18]{figure/2-3.png}
+    }
+    \subfigure[斥力作用]{\centering
+        \includegraphics[scale=0.18]{figure/2-2.png}
+    }\caption{流体交互效果图}
+\end{figure}
+同时,还可以用交互功能观察流体中波的传播.下面是一些波传播的效果图:
+\begin{figure}[H]\centering
+    \subfigure[波的传播I]{\centering
+        \includegraphics[scale=0.18]{figure/3-1.png}
+    }
+    \subfigure[波的传播II]{\centering
+        \includegraphics[scale=0.178]{figure/3-2.png}
+    }
+    \subfigure[波的传播III]{\centering
+        \includegraphics[scale=0.18]{figure/3-3.png}
+    }\caption{流体中波的传播效果图}
+\end{figure}
+\section{三维光滑粒子流体模拟}
+在二维光滑粒子流体模拟的基础上,实现了三维光滑粒子流体模拟.在\code{System3d.h}中定义了类\code{SPHSystem3d},其结构和功能与二维系统类似,主要区别是各个参数需要适应三维的情形,因此需要重新计算.其它的功能和实现方法与二维系统类似.最终的效果如下(这里隐去了边界粒子):
+\begin{figure}[H]\centering
+    \subfigure[三维流体模拟I]{\centering
+        \includegraphics[scale=0.28]{figure/4-1.png}
+    }
+    \qquad\subfigure[三维流体模拟II]{\centering
+        \includegraphics[scale=0.32]{figure/4-2.png}
+    }\caption{三维光滑粒子流体模拟效果图}
+\end{figure}
+\section{流体的简单非真实渲染}
+在实现了二维和三维光滑粒子流体模拟后,对三维流体进行了简单的非真实渲染.渲染的主要想法是将粒子视为球体,重建深度纹理,然后经过平滑后计算法线,根据法线与视线的夹角计算颜色.具体实现步骤如下:
+\begin{enumerate}[label=\tbf{\arabic*.}]
+    \item \code{\_programDepth}负责用着色器\code{depth.frag}和\code{depth.vert}渲染深度纹理.在片段着色器中,计算每个粒子投影到屏幕上的圆形区域内的深度值,并更新深度缓冲区,然后将深度作为纹理传入下一步.
+    \item \code{\_ProgramSmooth}负责用着色器\code{full-screen.vert}和\code{smooth.frag}对深度纹理进行平滑处理.在片段着色器中,使用双边滤波算法对深度纹理进行平滑,可以做到保留深度边界的同时去除将粒子视作球形时产生的表面凹凸不平的现象.
+    \item \code{\_ProgramShade}负责用着色器\code{full-screen.vert}和\code{shade.frag}进行最终渲染.在片段着色器中,根据平滑后的深度纹理计算每个像素的法线,然后根据法线与视线的夹角插值计算颜色,从而得到流体的非真实渲染效果.
+\end{enumerate}
+最终的渲染效果如下:
+\begin{figure}[H]\centering
+    \subfigure[非真实渲染效果I]{\centering
+        \includegraphics[scale=0.3]{figure/5-1.png}
+    }
+    \qquad\subfigure[非真实渲染效果II]{\centering
+        \includegraphics[scale=0.32]{figure/5-2.png}
+    }\caption{流体的简单非真实渲染效果图}
+\end{figure}
+\end{document}
